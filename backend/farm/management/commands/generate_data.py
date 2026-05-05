@@ -40,7 +40,12 @@ TURKEY_GEO_DATA = {
     }
 }
 
-CROPS = ['Buğday', 'Mısır', 'Ayçiçeği', 'Pamuk', 'Şeker Pancarı', 'Zeytin', 'Fındık', 'Çay', 'Narenciye', 'Antep Fıstığı']
+# Updated to match the frontend CROP_OPTIONS definitions
+CROPS = [
+    'Sunflowers', 'Apples', 'Clover', 'Lavender', 'Wildflowers', 
+    'Olives', 'Figs', 'Thyme', 'Peaches', 'Oranges', 'Cherries', 
+    'Carrots', 'Sesame', 'Watermelons', 'Hazelnuts', 'Tea', 'Cotton'
+]
 
 # Base string safely over 500 characters, sliced exactly to 500
 LOREM_IPSUM_500 = (
@@ -53,7 +58,7 @@ LOREM_IPSUM_500 = (
 )[:500]
 
 class Command(BaseCommand):
-    help = 'Generates mock Farm data for Türkiye using realistic nested geography'
+    help = 'Generates mock Farm data for Türkiye using realistic nested geography and specific crop types'
 
     def add_arguments(self, parser):
         parser.add_argument('count', type=int, help='The number of mock farms to create')
@@ -94,9 +99,9 @@ class Command(BaseCommand):
                 region=selected_region, # This perfectly matches RegionChoices.values
                 city=selected_city,
                 district=f"{selected_district} {i}", # Appending 'i' for uniqueness if desired
-                crop=random.choice(CROPS),
+                crop=random.choice(CROPS), # Now pulls from the updated JS-friendly list
                 location=location,
-                description=LOREM_IPSUM_500 # Attached the 500 character description
+                description=LOREM_IPSUM_500 
             )
             farms_to_create.append(farm)
 

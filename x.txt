@@ -1,0 +1,89 @@
+https://channels.readthedocs.io/en/latest/tutorial/part_1.html
+
+1) 
+    -> pip install channels_redis
+    -> pip install channels
+    
+2) Add [ ASGI_APPLICATION = 'myproject.asgi.application' ] into your settings.py file
+3) 
+    * Modify the asgi.py file in your main project folder. This file uses a ProtocolTypeRouter to dispatch connections based on their type (HTTP vs. WebSocket).
+    * When you're using Django Channels, everything is ASGI — both HTTP and WebSocket traffic. You've already replaced Gunicorn with Daphne, so there's no WSGI in the picture at all anymore.
+    What ProtocolTypeRouter actually does is route based on protocol type within ASGI:
+     -> HTTP connection → hands it to Django's standard HTTP handler (which is wrapped in ASGI, but it's still your normal views, DRF, etc.)
+     -> WebSocket connection → hands it to your Channels consumers
+     -> ProtocolTypeRouter({
+            "http": get_asgi_application(),   # → normal Django views, but via ASGI
+            "websocket": ...                  # → your Channels consumers
+        })
+     -> Both branches are ASGI. The "http" branch just happens to run your familiar Django view code underneath — it's not switching back to WSGI. 
+        get_asgi_application() is Django's ASGI-compatible wrapper around all your normal HTTP stuff.
+    * The short version: WSGI is gone the moment you switch to Daphne. ProtocolTypeRouter isn't choosing between WSGI and ASGI — it's choosing between two handlers that both live inside ASGI.
+
+    *   # myproject/asgi.py
+        import os
+        from django.core.asgi import get_asgi_application
+        from channels.routing import ProtocolTypeRouter, URLRouter
+        from channels.auth import AuthMiddlewareStack
+        import myapp.routing  # Import your app's routing
+
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+
+        application = ProtocolTypeRouter({
+            # Handles traditional HTTP requests
+            "http": get_asgi_application(),
+            
+            # Handles WebSocket connections
+            "websocket": AuthMiddlewareStack(
+                URLRouter(
+                    myapp.routing.websocket_urlpatterns
+                )
+            ),
+        })
+
+4) Inside your specific app (e.g., myapp), create a routing.py file. This works similarly to a standard urls.py but maps WebSocket paths to Consumers instead of views.
+    # myapp/routing.py
+    from django.urls import re_path
+    from . import consumers
+
+    websocket_urlpatterns = [
+        # Use re_path for regex or path for simple strings
+        # Always call .as_asgi() on the consumer class
+        re_path(r'ws/chat/(?P<room_name>\w+)/$', consumers.ChatConsumer.as_asgi()),
+    ]
+
+5) I was wondering if asgi is the similar thing as HTML. AI answer is the following:
+    *
+        -> HTTP is external communication (network-level)
+        -> ASGI is internal communication (software-level)
+    *
+        -> ASGI is not a protocol. It’s an interface (specification) inside Python.
+
+        -> It defines how a web server (like Uvicorn) talks to your Python application (like Django or FastAPI)
+           So ASGI is about communication inside a system (server ↔ app), not over the internet.
+
+6) 
+    * A consumer is created for each WebSocket connection. Each consumer has its own unique channel name, which acts like a private message address.
+    * A channel layer is a messaging system that lets these consumers communicate. Instead of talking to each other directly, a consumer sends a message to the channel layer, and the layer delivers it to the correct destination.
+
+    * There are two main ways to send messages:
+
+        -> To a single channel (one specific consumer)
+        -> To a group (multiple consumers, such as all users in a chat room)
+    
+    * In short: The channel layer allows separate consumer instances to exchange messages through a shared messaging system.
+
+!!!!!!!!!!SUMMARY!!!!!!!!!!
+    WebSockets are indeed a protocol for communication, much like HTTP, but they maintain a persistent, open "pipe" instead of closing after every request. This protocol is handled in the Django ecosystem 
+    via ASGI (Asynchronous Server Gateway Interface), which is the modern, asynchronous successor to the synchronous WSGI. However, ASGI is not merely a "wrapper" around synchronous functions. In reality, 
+    it is a natively asynchronous system designed to handle thousands of concurrent connections efficiently by not "blocking" while waiting for data. It only acts like a wrapper when you specifically use a SyncConsumer. 
+    In that case, Django Channels takes your synchronous code and runs it inside a threadpool—a group of pre-hired worker threads—so that your slow database queries don't freeze the entire server for everyone else.
+    Consumers are the event handlers for this protocol. Just as a standard Django view handles an HTTP Request, a Consumer handles WebSocket Events like "connecting," "receiving a message," or "disconnecting". 
+    You can write them as AsyncConsumers for high-performance, async-native tasks (like parallel API calls), or as SyncConsumers by default if you need to use the standard Django ORM safely without blocking
+    the main event loop.
+
+7) 
+    * What are Generic Consumers?
+        -> Think of Generic Consumers exactly like Django’s Generic Class-Based Views (ListView, DetailView, etc.).
+        -> The base AsyncConsumer is very low-level; you have to manually handle the raw ASGI "handshake" and every single small event. Generic Consumers wrap that complexity so you can focus on the logic.
+        -> The most useful ones for your arici_v2 project would be:
+            - JsonWebsocketConsumer / AsyncJsonWebsocketConsumer: Instead of manually calling json.loads() and json.dumps() every time you send or receive a message, these do it for you. You just implement a receive_json(self, content) method, and content is already a Python dictionary.

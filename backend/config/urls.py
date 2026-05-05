@@ -33,5 +33,5 @@ urlpatterns = [
 
     path('users/', include('user.urls')),
     path('farms/', include('farm.urls')),
-
+    path('chats/', include('chat.urls')),
 ]

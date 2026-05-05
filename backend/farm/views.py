@@ -3,18 +3,20 @@ from django.contrib.gis.geos import Polygon
 from django.core.cache import cache
 
 from rest_framework import viewsets
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 
 from elasticsearch_dsl import Q
 
-from .serializers import FarmSerializer
-from .models import Farm
+from .serializers import FarmSerializer, FarmImageSerializer
+from .models import Farm, FarmImages
 from .documents import FarmDocument
 
 
@@ -24,6 +26,30 @@ class MyFarms(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated] 
     def get_queryset(self):
         return Farm.objects.filter(user=self.request.user)
+    @action(detail=True, methods=['post'], url_path='images/upload')
+    def upload_image(self, request, pk=None):
+        farm = self.get_object()
+        image_file = request.FILES.get('image')
+        
+        if not image_file:
+            return Response({"detail": "No image provided."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        farm_image = FarmImages.objects.create(farm=farm, image=image_file)
+        serializer = FarmImageSerializer(farm_image)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # ─── Custom Action: Delete Image ─────────────────────────────
+    # Maps to: DELETE /farms/myfarms/{id}/images/{image_id}/delete/
+    @action(detail=True, methods=['delete'], url_path=r'images/(?P<image_id>[^/.]+)/delete')
+    def delete_image(self, request, image_id=None, pk=None):
+        farm = self.get_object()
+        try:
+            image_instance = FarmImages.objects.get(id=image_id, farm=farm)
+            image_instance.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except FarmImages.DoesNotExist:
+            return Response({"detail": "Image not found."}, status=status.HTTP_404_NOT_FOUND)
+        
 
 class FarmsList(APIView):
     authentication_classes = []

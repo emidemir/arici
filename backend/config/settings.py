@@ -21,6 +21,9 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels', # For the chat app, websocket bidirectional communication
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,6 +43,7 @@ INSTALLED_APPS = [
     # DJANGO APPS
     'user',
     'farm',
+    'chat',
 ]
 
 MIDDLEWARE = [
@@ -115,7 +119,7 @@ AUTH_USER_MODEL='user.User'
 # ========== REST FRAMEWORK ==========
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
 
@@ -131,7 +135,7 @@ ELASTICSEARCH_DSL={
 
 # ============ JWT CONFIG ============
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -217,3 +221,15 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY      = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_CURRENCY        = os.environ.get('STRIPE_CURRENCY')
 STRIPE_WEBHOOK_SECRET  = os.environ.get('STRIPE_WEBHOOK_SECRET')
+
+
+# ====== CHANNELS (ASGI) CONFIGS ======
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+ASGI_APPLICATION = 'config.asgi.application'
