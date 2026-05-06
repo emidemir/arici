@@ -7,7 +7,7 @@ from .models import Conversation, Message
 # likely cause circular imports.  Add / remove fields to match your User model.
 
 class ParticipantSerializer(serializers.Serializer):
-    id         = serializers.IntegerField()
+    id         = serializers.UUIDField()
     username   = serializers.CharField()
     full_name  = serializers.CharField()        # your custom field
     email      = serializers.EmailField()
@@ -18,7 +18,7 @@ class ParticipantSerializer(serializers.Serializer):
 # ── Farm summary (enough for the chat header / context card) ─────────────────
 
 class FarmSummarySerializer(serializers.Serializer):
-    id       = serializers.IntegerField()
+    id       = serializers.UUIDField()
     district = serializers.CharField()
     city     = serializers.CharField()
     region   = serializers.CharField()
@@ -28,7 +28,7 @@ class FarmSummarySerializer(serializers.Serializer):
 # ── Message ───────────────────────────────────────────────────────────────────
 
 class MessageSerializer(serializers.ModelSerializer):
-    sender_id   = serializers.IntegerField(source='sender.id',        read_only=True)
+    sender_id   = serializers.UUIDField(source='sender.id',        read_only=True)
     sender_name = serializers.CharField(source='sender.full_name',    read_only=True)
     is_mine     = serializers.SerializerMethodField()
 
@@ -113,7 +113,6 @@ class ConversationSerializer(serializers.ModelSerializer):
 
 
 class ConversationCreateSerializer(serializers.Serializer):
-    """POST /conversations/ — start a conversation with another user."""
-    recipient_id = serializers.IntegerField()
-    farm_id      = serializers.IntegerField(required=False, allow_null=True)
-    body         = serializers.CharField()   # first message text
+    recipient_id = serializers.UUIDField()
+    farm_id      = serializers.UUIDField(required=False, allow_null=True) 
+    body         = serializers.CharField(required=False, allow_blank=True, default='')

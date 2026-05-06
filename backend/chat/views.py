@@ -67,31 +67,29 @@ class ConversationListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Resolve recipient
         recipient = get_object_or_404(User, pk=data['recipient_id'])
         if recipient.pk == request.user.pk:
             raise ValidationError('You cannot start a conversation with yourself.')
 
-        # Resolve optional farm
         farm = None
         if data.get('farm_id'):
-            from farms.models import Farm   # lazy import to avoid circular deps
+            from farm.models import Farm
+            print(f"Looking up Farm pk={data['farm_id']} type={type(data['farm_id'])}")
             farm = get_object_or_404(Farm, pk=data['farm_id'])
 
-        # Get or create the conversation
         conversation, _ = Conversation.get_or_create_for_users(
             request.user, recipient, farm=farm
         )
 
-        # Create the first message
-        message = Message.objects.create(
-            conversation=conversation,
-            sender=request.user,
-            body=data['body'],
-        )
-
-        # Bump updated_at so this conversation floats to the top
-        conversation.save(update_fields=['updated_at'])
+        # Only create a message if a body was actually provided
+        body = data.get('body', '').strip()
+        if body:
+            Message.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                body=body,
+            )
+            conversation.save(update_fields=['updated_at'])
 
         return Response(
             ConversationSerializer(conversation, context={'request': request}).data,
