@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'user',
     'farm',
     'chat',
+    'notifications',
 ]
 
 MIDDLEWARE = [

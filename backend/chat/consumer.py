@@ -1,3 +1,5 @@
+# chat/consumer.py
+
 import json
 
 from channels.db import database_sync_to_async
@@ -7,6 +9,7 @@ from django.db.models import Q
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
+from notifications.models import Notification
 from .models import Conversation, Message
 
 User = get_user_model()
@@ -111,6 +114,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # Bump conversation.updated_at so it floats to the top in the sidebar
         await self.touch_conversation()
 
+        await self.create_notification(message)
+
     async def handle_read_receipt(self):
         """
         Mark all messages sent by the OTHER participant as read.
@@ -140,6 +145,35 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     # ── Database helpers (run in a thread pool via database_sync_to_async) ────
 
+
+    @database_sync_to_async
+    def create_notification(self, message):
+        from notifications.models import Notification
+        recipient = self.conversation.get_other_participant(self.user)
+
+        existing = Notification.objects.filter(
+            recipient=recipient,
+            type='message',
+            conversation=self.conversation,
+            is_read=False,          # only merge into unread ones
+        ).first()
+
+        if existing:
+            # bump count and refresh timestamp so it floats to the top
+            existing.message_count += 1
+            existing.actor_name     = getattr(self.user, 'full_name', self.user.username)
+            existing.verb           = 'sent you a message'
+            existing.created_at     = message.created_at   # need auto_now_add=False for this
+            existing.save(update_fields=['message_count', 'actor_name', 'verb'])
+        else:
+            Notification.objects.create(
+                recipient=recipient,
+                actor=self.user,
+                actor_name=getattr(self.user, 'full_name', self.user.username),
+                verb='sent you a message',
+                type='message',
+                conversation=self.conversation,
+            )
 
     @database_sync_to_async
     def _authenticate_from_query_string(self):
