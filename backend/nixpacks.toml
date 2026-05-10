@@ -1,4 +1,2 @@
-providers = ["python"]
-
 [phases.setup]
-nixPkgs = ["...", "gdal", "geos", "proj"]
+nixPkgs = ["gdal", "geos", "python312"]
