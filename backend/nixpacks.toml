@@ -1,5 +1,0 @@
-[phases.setup]
-nixPkgs = ["gdal", "geos", "postgresql"]
-
-[phases.install]
-cmds = ["/opt/venv/bin/pip install psycopg2-binary==2.9.12 && /opt/venv/bin/pip install -r requirements.txt"]
