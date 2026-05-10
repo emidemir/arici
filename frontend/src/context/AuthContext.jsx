@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { tokenManager } from '../lib/TokenManager';
+import { tokenManager } from '../lib/TokenManager.js';
 
 const AuthContext = createContext(null);
 
