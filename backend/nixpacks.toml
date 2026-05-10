@@ -1,2 +1,5 @@
 [phases.setup]
-nixPkgs = ["gdal", "geos", "python312"]
+nixPkgs = ["gdal", "geos", "postgresql"]
+
+[phases.install]
+cmds = ["pip install psycopg2-binary==2.9.12 && pip install -r requirements.txt"]
