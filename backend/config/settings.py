@@ -13,9 +13,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY=os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["aricibackend.emirhanutkudemir.com", "localhost"]
 
 
 # Application definition
@@ -128,7 +128,7 @@ REST_FRAMEWORK = {
 # =========== ELASTICSEARCH ===========
 ELASTICSEARCH_DSL={
     'default': {
-        'hosts': 'http://localhost:9200',
+        'hosts': os.environ.get('ELASTICSEARCH_URL'),
         'http_auth': ('username', 'password')
     }
 }
@@ -159,22 +159,17 @@ DATABASES = {
 # ========== CORS CONFIGS ==========
 # CORS_ALLOW_ALL_ORIGINS = True # Use this in production, I guess??
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "https://aricifrontend.emirhanutkudemir.com",
 ]
 
 # ========== CACHE BACKEND ==========
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django_redis.cache.RedisCache",
-#         "LOCATION": "redis://127.0.0.1:6379/1",
-#         "OPTIONS": {
-#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-#         }
-#     }
-# }
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"{os.environ.get("REDIS_URL")}:{os.environ.get('REDIS_PORT')}/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -189,7 +184,7 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')  # e.g. http://127.0.0.1:9000
 
 # 4. SSL — set False for local HTTP development; True in production with HTTPS
-AWS_S3_USE_SSL = False
+AWS_S3_USE_SSL = True
 
 # 5. Don't add authentication query params to every image URL
 #    (Safe to disable when your bucket policy is set to public read)
@@ -229,8 +224,16 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [(os.environ.get('REDIS_URL'), os.environ.get('REDIS_PORT'))],
         },
     },
 }
 ASGI_APPLICATION = 'config.asgi.application'
+
+# ====== SSL ======
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
