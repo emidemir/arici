@@ -1,0 +1,287 @@
+/* ─── Navbar Icon Buttons ────────────────────────────────────── */
+/* These are injected into the existing .app-header__nav */
+
+.nav-icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(251, 248, 242, 0.75);
+    cursor: pointer;
+    transition: all var(--transition);
+    flex-shrink: 0;
+  }
+  
+  .nav-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: var(--color-cream);
+  }
+  
+  .nav-icon-btn--active {
+    background: rgba(240, 201, 106, 0.12);
+    border-color: rgba(240, 201, 106, 0.35);
+    color: var(--color-straw);
+  }
+  
+  /* Unread count badge */
+  .nav-icon-btn__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 17px;
+    height: 17px;
+    border-radius: 9px;
+    background: var(--color-honey);
+    color: var(--color-soil);
+    font-family: var(--font-body);
+    font-size: 0.6rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid var(--color-earth);
+    line-height: 1;
+    animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  @keyframes badgePop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  
+  /* Bell ring animation when new notification arrives */
+  .nav-icon-btn--ringing svg {
+    animation: bellRing 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    transform-origin: top center;
+  }
+  
+  @keyframes bellRing {
+    0%, 100% { transform: rotate(0deg); }
+    15%  { transform: rotate(10deg); }
+    30%  { transform: rotate(-9deg); }
+    45%  { transform: rotate(7deg); }
+    60%  { transform: rotate(-5deg); }
+    75%  { transform: rotate(3deg); }
+  }
+  
+  /* ─── Notification Popup ─────────────────────────────────────── */
+  .notif-popup {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 340px;
+    background: var(--color-cream);
+    border: 1.5px solid var(--color-mist);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 48px rgba(28, 43, 26, 0.2), 0 4px 12px rgba(28, 43, 26, 0.1);
+    overflow: hidden;
+    z-index: 600;
+    animation: popupSlide 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: top right;
+  }
+  
+  @keyframes popupSlide {
+    from { opacity: 0; transform: scale(0.93) translateY(-6px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0); }
+  }
+  
+  /* Header */
+  .notif-popup__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.15rem 0.75rem;
+    border-bottom: 1px solid var(--color-mist);
+  }
+  
+  .notif-popup__title {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--color-soil);
+    margin: 0;
+  }
+  
+  .notif-popup__mark-all {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-moss);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition);
+  }
+  
+  .notif-popup__mark-all:hover {
+    background: #D4E8C4;
+    color: var(--color-earth);
+  }
+  
+  /* List */
+  .notif-popup__list {
+    max-height: 380px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-mist) transparent;
+  }
+  
+  .notif-popup__list::-webkit-scrollbar { width: 3px; }
+  .notif-popup__list::-webkit-scrollbar-track { background: transparent; }
+  .notif-popup__list::-webkit-scrollbar-thumb { background: var(--color-mist); border-radius: 2px; }
+  
+  /* Single notification row */
+  .notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1.15rem;
+    border-bottom: 1px solid var(--color-mist);
+    cursor: pointer;
+    transition: background-color var(--transition);
+    position: relative;
+    text-decoration: none;
+  }
+  
+  .notif-item:last-child { border-bottom: none; }
+  
+  .notif-item:hover {
+    background: var(--color-parchment);
+  }
+  
+  .notif-item--unread {
+    background: #F5FAF0;
+  }
+  
+  .notif-item--unread:hover {
+    background: #EEF6E6;
+  }
+  
+  /* Unread dot */
+  .notif-item--unread::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-moss);
+  }
+  
+  /* Icon badge for notification type */
+  .notif-item__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  
+  .notif-item__icon--message  { background: #D4E8C4; }
+  .notif-item__icon--farm     { background: #F0C96A33; }
+  .notif-item__icon--system   { background: var(--color-mist); }
+  
+  .notif-item__body {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .notif-item__text {
+    font-size: 0.825rem;
+    color: var(--color-soil);
+    line-height: 1.45;
+    margin: 0 0 0.25rem;
+    /* Clamp to 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .notif-item__text strong {
+    font-weight: 600;
+    color: var(--color-earth);
+  }
+  
+  .notif-item__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  
+  .notif-item__time {
+    font-size: 0.7rem;
+    color: var(--color-bark);
+    opacity: 0.65;
+  }
+  
+  .notif-item__tag {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-pill);
+    background: #D4E8C4;
+    color: var(--color-earth);
+  }
+  
+  .notif-item__tag--message { background: #D4E8C4; color: var(--color-earth); }
+  .notif-item__tag--farm    { background: #F0E8C4; color: #7A5A1A; }
+  
+  /* Empty state */
+  .notif-popup__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    gap: 0.5rem;
+  }
+  
+  .notif-popup__empty-icon { font-size: 2rem; opacity: 0.4; }
+  
+  .notif-popup__empty-text {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 0.9rem;
+    color: var(--color-bark);
+    opacity: 0.7;
+  }
+  
+  /* Footer */
+  .notif-popup__footer {
+    padding: 0.65rem 1.15rem;
+    border-top: 1px solid var(--color-mist);
+    background: var(--color-parchment);
+  }
+  
+  .notif-popup__footer-link {
+    display: block;
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--color-moss);
+    text-decoration: none;
+    padding: 0.3rem;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition);
+  }
+  
+  .notif-popup__footer-link:hover { color: var(--color-earth); }

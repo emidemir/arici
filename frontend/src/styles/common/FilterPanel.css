@@ -1,0 +1,227 @@
+/* ─── Panel ──────────────────────────────────────────────────── */
+.filter-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 360px;
+    background: #1e301c;
+    border: 1px solid rgba(240, 201, 106, 0.2);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 600;
+    overflow: hidden;
+  
+    animation: panelReveal 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: top right;
+  }
+  
+  @keyframes panelReveal {
+    from { opacity: 0; transform: scale(0.95) translateY(-6px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+  }
+  
+  /* ─── Header ─────────────────────────────────────────────────── */
+  .filter-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem 0.875rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  
+  .filter-panel__heading {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--color-cream);
+  }
+  
+  .filter-panel__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .filter-panel__clear {
+    background: none;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    color: var(--color-straw);
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-pill);
+    transition: background var(--transition);
+  }
+  .filter-panel__clear:hover {
+    background: rgba(240, 201, 106, 0.1);
+  }
+  
+  .filter-panel__close {
+    background: none;
+    border: none;
+    color: rgba(251, 248, 242, 0.45);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+  }
+  .filter-panel__close:hover {
+    color: var(--color-cream);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  /* ─── Sections ───────────────────────────────────────────────── */
+  .filter-section {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  
+  .filter-section:last-child {
+    border-bottom: none;
+  }
+  
+  .filter-section__label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(251, 248, 242, 0.45);
+    margin-bottom: 0.65rem;
+  }
+  
+  .filter-section__label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.65rem;
+  }
+  
+  .filter-section__value {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-straw);
+  }
+  
+  /* ─── Select ─────────────────────────────────────────────────── */
+  .filter-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
+    color: var(--color-cream);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    padding: 0.55rem 0.875rem;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(251,248,242,0.4)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    padding-right: 2.25rem;
+    transition: border-color var(--transition);
+  }
+  
+  .filter-select:focus {
+    outline: none;
+    border-color: rgba(240, 201, 106, 0.4);
+  }
+  
+  .filter-select option {
+    background: #1e301c;
+    color: var(--color-cream);
+  }
+  
+  /* ─── Slider ─────────────────────────────────────────────────── */
+  .filter-slider {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+    outline: none;
+    cursor: pointer;
+  }
+  
+  .filter-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-honey);
+    border: 2px solid #1e301c;
+    box-shadow: 0 1px 6px rgba(212, 137, 26, 0.5);
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition);
+  }
+  
+  .filter-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 2px 10px rgba(212, 137, 26, 0.6);
+  }
+  
+  .filter-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-honey);
+    border: 2px solid #1e301c;
+    cursor: pointer;
+  }
+  
+  /* Dynamic fill using JS is complex; a CSS gradient trick instead */
+  .filter-slider__labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.4rem;
+    font-size: 0.7rem;
+    color: rgba(251, 248, 242, 0.3);
+  }
+  
+  /* ─── Crop chips ─────────────────────────────────────────────── */
+  .filter-crops {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  
+  .filter-crop-chip {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-body);
+    font-size: 0.775rem;
+    font-weight: 400;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(251, 248, 242, 0.65);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  
+  .filter-crop-chip:hover {
+    border-color: rgba(240, 201, 106, 0.35);
+    color: var(--color-cream);
+    background: rgba(240, 201, 106, 0.08);
+  }
+  
+  .filter-crop-chip--active {
+    background: var(--color-honey);
+    border-color: var(--color-honey);
+    color: var(--color-soil);
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(212, 137, 26, 0.35);
+  }
+  
+  .filter-crop-chip--active:hover {
+    background: #bb7814;
+    border-color: #bb7814;
+    color: var(--color-soil);
+  }

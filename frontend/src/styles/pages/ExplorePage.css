@@ -1,0 +1,273 @@
+/* ─── Page shell ─────────────────────────────────────────────── */
+.explore-page {
+  display: flex;
+  flex-direction: column;
+  /* Fill exactly the viewport below the 64px app header */
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  position: relative;
+}
+
+/* In list mode we need normal scroll */
+.explore-page--list {
+  height: auto;
+  overflow: visible;
+}
+
+/* ─── Floating Toolbar ───────────────────────────────────────── */
+.explore-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+
+  /* Floats over the map */
+  position: sticky;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  z-index: 500;
+
+  background: rgba(28, 43, 26, 0.82);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(240, 201, 106, 0.18);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* In list mode, toolbar becomes a normal sticky bar */
+.explore-page--list .explore-toolbar {
+  position: sticky;   /* was: sticky */
+  top: 0;
+  left: 0;
+  right: 0;
+  border-radius: 0;
+  background: var(--color-earth);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-bottom: 1px solid rgba(240, 201, 106, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  padding: 0.75rem 2rem;
+}
+
+/* ─── Toolbar: Brand left side ───────────────────────────────── */
+.explore-toolbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.explore-toolbar__title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-cream);
+  white-space: nowrap;
+}
+
+.explore-toolbar__title em {
+  font-style: italic;
+  color: var(--color-straw);
+}
+
+.explore-toolbar__pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(240, 201, 106, 0.15);
+  color: var(--color-straw);
+  border: 1px solid rgba(240, 201, 106, 0.3);
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.2rem 0.65rem;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Toolbar: Right side ────────────────────────────────────── */
+.explore-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-shrink: 0;
+}
+
+.explore-toolbar__stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.explore-toolbar__stat {
+  font-size: 0.78rem;
+  color: rgba(251, 248, 242, 0.6);
+  white-space: nowrap;
+}
+
+.explore-toolbar__stat strong {
+  color: var(--color-cream);
+  font-weight: 500;
+}
+
+.explore-toolbar__sep {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.9rem;
+}
+
+/* ─── Toggle ─────────────────────────────────────────────────── */
+.view-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.view-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(251, 248, 242, 0.6);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.view-toggle__btn:hover {
+  color: var(--color-cream);
+}
+
+.view-toggle__btn--active {
+  background: var(--color-honey);
+  color: var(--color-soil);
+  font-weight: 600;
+  box-shadow: 0 1px 6px rgba(212, 137, 26, 0.4);
+}
+
+.view-toggle__btn--active:hover {
+  color: var(--color-soil);
+}
+
+/* ─── Fullscreen map ─────────────────────────────────────────── */
+.explore-map-fullscreen {
+  flex: 1;
+  height: 100%;
+}
+
+/* ─── List view ──────────────────────────────────────────────── */
+.explore-list-view {
+  padding: 1.5rem 2rem 3rem;
+}
+
+.explore-page--list .explore-list-view {
+  padding-top: calc(1.5rem + 52px); /* 52px ≈ toolbar height */
+}
+
+/* ─── Filter wrapper (positions the panel relative to button) ── */
+.filter-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* ─── Filter button ──────────────────────────────────────────── */
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(251, 248, 242, 0.75);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-pill);
+  padding: 0.38rem 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  color: var(--color-cream);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.filter-btn--open {
+  background: rgba(240, 201, 106, 0.12);
+  border-color: rgba(240, 201, 106, 0.4);
+  color: var(--color-straw);
+}
+
+.filter-btn--active {
+  background: var(--color-honey);
+  border-color: var(--color-honey);
+  color: var(--color-soil);
+}
+
+.filter-btn--active:hover {
+  background: #bb7814;
+  border-color: #bb7814;
+  color: var(--color-soil);
+}
+
+.filter-btn--active.filter-btn--open {
+  background: #bb7814;
+  border-color: #bb7814;
+  color: var(--color-soil);
+}
+
+.filter-btn__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--color-soil);
+  color: var(--color-straw);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0 5px;
+  margin-left: 2px;
+}
+
+.filter-btn--active .filter-btn__badge {
+  background: rgba(28, 43, 26, 0.35);
+  color: var(--color-soil);
+}
+
+/* ─── Empty state ────────────────────────────────────────────── */
+.explore-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  gap: 1rem;
+  text-align: center;
+}
+
+.explore-empty__icon {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+.explore-empty__text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--color-bark);
+}

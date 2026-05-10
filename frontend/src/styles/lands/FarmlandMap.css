@@ -1,0 +1,85 @@
+/* ─── Map wrapper fills parent completely ────────────────────── */
+.farmland-map-wrapper {
+  height: 100%;
+  width: 100%;
+  /* No border-radius, no shadow — the map IS the page */
+}
+
+.farmland-map {
+  height: 100%;
+  width: 100%;
+}
+
+/* ─── Popup Card ─────────────────────────────────────────────── */
+.map-popup-card {
+  padding: 1rem 1.1rem 1.1rem;
+  background: var(--color-cream);
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.map-popup-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.map-popup-card__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.map-popup-card__title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-soil);
+  margin-bottom: 4px;
+}
+
+.map-popup-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-mist);
+}
+
+.map-popup-card__label {
+  font-size: 0.75rem;
+  color: var(--color-bark);
+}
+
+.map-popup-card__value {
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--color-soil);
+}
+
+.map-popup-card__cta {
+  width: 100%;
+  justify-content: center;
+  font-size: 0.825rem;
+  padding: 0.5rem 1rem;
+}
+
+/* ─── Map loading overlay ────────────────────────────────────── */
+.map-loading-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(28, 43, 26, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(240, 201, 106, 0.2);
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}

@@ -1,0 +1,662 @@
+/* ─── Page Shell ────────────────────────────────────────────── */
+.my-farms-page {
+    min-height: calc(100vh - 64px);
+    background-color: var(--color-parchment);
+    padding: 2.5rem 2rem 4rem;
+  }
+  
+  /* ─── Page Header ───────────────────────────────────────────── */
+  .my-farms-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .my-farms-header__left {}
+  
+  .my-farms-header__eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-sage);
+    margin-bottom: 0.35rem;
+  }
+  
+  .my-farms-header__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 4vw, 2.4rem);
+    color: var(--color-soil);
+    line-height: 1.15;
+    margin-bottom: 0.4rem;
+  }
+  
+  .my-farms-header__title em {
+    font-style: italic;
+    color: var(--color-moss);
+  }
+  
+  .my-farms-header__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-bark);
+  }
+  
+  /* ─── Stats Strip ───────────────────────────────────────────── */
+  .my-farms-stats {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.25rem 1.75rem;
+    background: var(--color-cream);
+    border: 1.5px solid var(--color-mist);
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .my-farms-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .my-farms-stat__value {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--color-earth);
+    line-height: 1;
+  }
+  
+  .my-farms-stat__label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-bark);
+  }
+  
+  .my-farms-stat__sep {
+    width: 1px;
+    height: 40px;
+    background: var(--color-mist);
+  }
+  
+  /* ─── Toolbar (search + sort) ───────────────────────────────── */
+  .my-farms-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .my-farms-search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 360px;
+  }
+  
+  .my-farms-search__icon {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-bark);
+    pointer-events: none;
+    opacity: 0.55;
+  }
+  
+  .my-farms-search__input {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: var(--color-soil);
+    background: var(--color-cream);
+    border: 1.5px solid var(--color-mist);
+    border-radius: var(--radius-pill);
+    padding: 0.5rem 1rem 0.5rem 2.4rem;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  
+  .my-farms-search__input::placeholder { color: var(--color-bark); opacity: 0.5; }
+  
+  .my-farms-search__input:focus {
+    border-color: var(--color-sage);
+    box-shadow: 0 0 0 3px rgba(138, 175, 122, 0.15);
+  }
+  
+  .my-farms-sort {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--color-soil);
+    background: var(--color-cream);
+    border: 1.5px solid var(--color-mist);
+    border-radius: var(--radius-pill);
+    padding: 0.5rem 1rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color var(--transition);
+  }
+  
+  .my-farms-sort:focus { border-color: var(--color-sage); }
+  
+  /* ─── Grid ──────────────────────────────────────────────────── */
+  .my-farms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  /* ─── Farm Card ─────────────────────────────────────────────── */
+  .farm-card {
+    background: var(--color-cream);
+    border: 1.5px solid var(--color-mist);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+  }
+  
+  .farm-card:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-2px);
+    border-color: var(--color-sage);
+  }
+  
+  /* ─── Card: Image / Hero ────────────────────────────────────── */
+  .farm-card__hero {
+    position: relative;
+    height: 180px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  
+  .farm-card__hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+  }
+  
+  .farm-card:hover .farm-card__hero-img {
+    transform: scale(1.04);
+  }
+  
+  .farm-card__hero-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #3a5a30 0%, #1C2B1A 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  
+  .farm-card__hero-emoji {
+    font-size: 2.75rem;
+    opacity: 0.75;
+  }
+  
+  .farm-card__hero-placeholder-text {
+    font-size: 0.7rem;
+    color: rgba(245, 240, 232, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  
+  .farm-card__status-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-pill);
+  }
+  
+  .farm-card__status-badge--active {
+    background: rgba(74, 122, 58, 0.9);
+    color: #D4E8C4;
+  }
+  
+  .farm-card__status-badge--inactive {
+    background: rgba(107, 78, 42, 0.85);
+    color: #F0D8B8;
+  }
+  
+  .farm-card__status-badge--pending {
+    background: rgba(212, 137, 26, 0.85);
+    color: #FBF8F2;
+  }
+  
+  /* ─── Card: Body ────────────────────────────────────────────── */
+  .farm-card__body {
+    padding: 1.1rem 1.25rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .farm-card__crop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  
+  .farm-card__crop-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-earth);
+    background: #D4E8C4;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--radius-pill);
+  }
+  
+  .farm-card__acres {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    color: var(--color-bark);
+  }
+  
+  .farm-card__title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--color-soil);
+    line-height: 1.25;
+    margin: 0;
+  }
+  
+  .farm-card__location {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: var(--color-bark);
+    opacity: 0.75;
+  }
+  
+  /* ─── Card: Footer actions ──────────────────────────────────── */
+  .farm-card__footer {
+    border-top: 1px solid var(--color-mist);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .farm-card__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition);
+    background: none;
+    white-space: nowrap;
+  }
+  
+  .farm-card__action--view {
+    color: var(--color-moss);
+    border-color: var(--color-mist);
+  }
+  .farm-card__action--view:hover {
+    background: var(--color-earth);
+    color: var(--color-cream);
+    border-color: var(--color-earth);
+  }
+  
+  .farm-card__action--edit {
+    color: var(--color-bark);
+    border-color: var(--color-mist);
+  }
+  .farm-card__action--edit:hover {
+    background: var(--color-mist);
+    color: var(--color-soil);
+  }
+  
+  .farm-card__action--delete {
+    color: #C0392B;
+    border-color: transparent;
+    margin-left: auto;
+  }
+  .farm-card__action--delete:hover {
+    background: #FDECEA;
+    border-color: #f5c6c3;
+  }
+  
+  /* ─── Add Farm Card ─────────────────────────────────────────── */
+  .farm-card--add {
+    border-style: dashed;
+    border-color: var(--color-sage);
+    background: transparent;
+    cursor: pointer;
+    min-height: 280px;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    transition: background-color var(--transition), border-color var(--transition), transform var(--transition);
+  }
+  
+  .farm-card--add:hover {
+    background: rgba(138, 175, 122, 0.07);
+    border-color: var(--color-moss);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+  }
+  
+  .farm-card__add-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(138, 175, 122, 0.15);
+    border: 1.5px solid var(--color-sage);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-moss);
+    transition: background-color var(--transition), transform var(--transition);
+  }
+  
+  .farm-card--add:hover .farm-card__add-icon {
+    background: var(--color-moss);
+    color: var(--color-cream);
+    transform: scale(1.08);
+  }
+  
+  .farm-card__add-label {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--color-bark);
+    text-align: center;
+  }
+  
+  .farm-card__add-sublabel {
+    font-size: 0.78rem;
+    color: var(--color-bark);
+    opacity: 0.6;
+    text-align: center;
+  }
+  
+  /* ─── Empty State ───────────────────────────────────────────── */
+  .my-farms-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 2rem;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .my-farms-empty__icon { font-size: 3rem; opacity: 0.45; }
+  
+  .my-farms-empty__text {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.1rem;
+    color: var(--color-bark);
+  }
+  
+  /* ─── Modal Overlay ─────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 43, 26, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.18s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  .modal {
+    background: var(--color-cream);
+    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--color-mist);
+    box-shadow: 0 24px 64px rgba(28, 43, 26, 0.25);
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  @keyframes slideUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  
+  .modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1.75rem 1.25rem;
+    border-bottom: 1px solid var(--color-mist);
+  }
+  
+  .modal__title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--color-soil);
+    margin: 0;
+  }
+  
+  .modal__title em {
+    color: var(--color-moss);
+    font-style: italic;
+  }
+  
+  .modal__close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-mist);
+    background: none;
+    color: var(--color-bark);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    flex-shrink: 0;
+  }
+  
+  .modal__close:hover {
+    background: var(--color-mist);
+    color: var(--color-soil);
+  }
+  
+  .modal__body {
+    padding: 1.5rem 1.75rem;
+  }
+  
+  /* ─── Form Fields ───────────────────────────────────────────── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  
+  .form-field--full {
+    grid-column: 1 / -1;
+  }
+  
+  .form-label {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-bark);
+  }
+  
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--color-soil);
+    background: var(--color-parchment);
+    border: 1.5px solid var(--color-mist);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 0.875rem;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    width: 100%;
+  }
+  
+  .form-input::placeholder,
+  .form-textarea::placeholder { color: var(--color-bark); opacity: 0.4; }
+  
+  .form-input:focus,
+  .form-select:focus,
+  .form-textarea:focus {
+    border-color: var(--color-sage);
+    box-shadow: 0 0 0 3px rgba(138, 175, 122, 0.18);
+  }
+  
+  .form-textarea {
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.6;
+  }
+  
+  /* ─── Crop Picker ───────────────────────────────────────────── */
+  .crop-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .crop-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--color-mist);
+    background: var(--color-parchment);
+    color: var(--color-bark);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  
+  .crop-option:hover {
+    border-color: var(--color-sage);
+    color: var(--color-earth);
+  }
+  
+  .crop-option--selected {
+    background: #D4E8C4;
+    border-color: var(--color-moss);
+    color: var(--color-earth);
+  }
+  
+  /* ─── Modal Footer ──────────────────────────────────────────── */
+  .modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.25rem 1.75rem 1.5rem;
+    border-top: 1px solid var(--color-mist);
+  }
+  
+  /* ─── Delete Confirm Modal ──────────────────────────────────── */
+  .delete-modal {
+    max-width: 400px;
+  }
+  
+  .delete-modal__body {
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .delete-modal__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #FDECEA;
+    border: 1.5px solid #f5c6c3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #C0392B;
+    font-size: 1.35rem;
+  }
+  
+  .delete-modal__text {
+    font-size: 0.9rem;
+    color: var(--color-bark);
+    line-height: 1.6;
+  }
+  
+  .delete-modal__text strong {
+    color: var(--color-soil);
+    font-weight: 500;
+  }
+  
+  .btn--danger {
+    background: #C0392B;
+    color: #fff;
+    border-color: #C0392B;
+  }
+  
+  .btn--danger:hover {
+    background: #a93226;
+    border-color: #a93226;
+    box-shadow: 0 4px 12px rgba(192, 57, 43, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  /* ─── Responsive ────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .my-farms-page { padding: 1.5rem 1rem 3rem; }
+    .my-farms-grid { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .my-farms-stats { gap: 1rem; }
+  }

@@ -1,0 +1,411 @@
+/* ─── Nav bar ───────────────────────────────────────────────── */
+.detail-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: var(--color-cream);
+  border-bottom: 1px solid var(--color-mist);
+}
+
+.detail-nav__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+/* ─── Body ──────────────────────────────────────────────────── */
+.detail-body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 1100px;
+  align-items: start;
+}
+
+/* Medium screens: main + sidebar side-by-side, hero + map full-width below */
+@media (max-width: 1024px) {
+  .detail-body--with-map {
+    grid-template-columns: 1fr 280px;
+  }
+
+  .detail-hero-col {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: static;
+    height: 320px;
+    max-height: none;
+    min-height: none;
+  }
+
+  .detail-map-col {
+    grid-row: 3;
+    grid-column: 1 / -1; 
+  }
+
+  /* Force the sidebar to stop being sticky when the image drops below it */
+  .detail-sidebar {
+    position: static !important; 
+    height: auto;
+  }
+}
+
+/* Small screens: everything stacks */
+@media (max-width: 768px) {
+  .detail-body--with-map {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-body--with-map .detail-body__main { grid-column: 1; grid-row: 1; }
+  .detail-body--with-map .detail-sidebar    { grid-column: 1; grid-row: 2; }
+  .detail-hero-col                          { grid-column: 1; grid-row: 3; height: 260px; }
+  .detail-map-col                           { grid-column: 1; grid-row: 4; height: 260px; }
+
+  /* Double-tap to ensure it behaves on mobile */
+  .detail-sidebar {
+    position: static !important;
+  }
+}
+
+/* Title block */
+.detail-title-block {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--color-mist);
+}
+
+.detail-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  color: var(--color-soil);
+  margin-bottom: 1.25rem;
+  line-height: 1.15;
+}
+
+.detail-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-stat__value {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--color-earth);
+}
+
+.detail-stat__label {
+  font-size: 0.72rem;
+  color: var(--color-bark);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-stat__sep {
+  width: 1px;
+  height: 32px;
+  background: var(--color-mist);
+}
+
+/* Section */
+.detail-section {
+  margin-bottom: 1.75rem;
+}
+
+.detail-section__heading {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--color-soil);
+  margin-bottom: 0.65rem;
+}
+
+.detail-section__body {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--color-bark);
+}
+
+/* Benefits */
+.detail-benefits {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.detail-benefit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-bark);
+}
+
+.detail-benefit__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-sage);
+  flex-shrink: 0;
+}
+
+/* ─── Contact Sidebar Card ──────────────────────────────────── */
+.detail-sidebar {
+  position: sticky;
+  top: calc(64px + 1rem);
+}
+
+.contact-card {
+  background: var(--color-cream);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--color-mist);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.contact-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--color-mist);
+}
+
+.contact-card__avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--color-earth);
+  color: var(--color-straw);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.contact-card__name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-soil);
+  margin: 0;
+}
+
+.contact-card__role {
+  font-size: 0.78rem;
+  color: var(--color-bark);
+  margin: 0;
+}
+
+.contact-card__email {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.825rem;
+  color: var(--color-moss);
+  word-break: break-all;
+}
+
+.contact-card__cta {
+  width: 100%;
+  justify-content: center;
+}
+
+.contact-card__disclaimer {
+  font-size: 0.7rem;
+  color: var(--color-bark);
+  opacity: 0.7;
+  line-height: 1.5;
+  margin: 0;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--color-mist);
+}
+
+/* ─── 3-column layout (main · sidebar · hero) ──────────────── */
+
+/* Col 1: main content, Col 2: sidebar, Col 3: hero image.
+   Map spans all columns as a second row below. */
+.detail-body--with-map {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 300px minmax(320px, 2fr);
+  grid-template-rows: auto auto;
+  align-items: start;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: none;
+}
+
+/* Col 3, Row 1 — hero image card */
+.detail-hero-col {
+  grid-column: 3;
+  grid-row: 1;
+  position: sticky;
+  top: 80px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-elevated);
+  border: 1.5px solid var(--color-mist);
+  height: calc(100vh - 120px);
+  max-height: 700px;
+  min-height: 480px;
+  background: linear-gradient(135deg, #3a5a30 0%, #1C2B1A 100%);
+  background-image:
+    radial-gradient(circle at 30% 50%, rgba(212, 137, 26, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 70% 30%, rgba(138, 175, 122, 0.1) 0%, transparent 40%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.detail-hero-col__emoji {
+  font-size: 5rem;
+  opacity: 0.8;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.3));
+}
+
+.detail-hero-col__placeholder-text {
+  font-size: 0.8rem;
+  color: rgba(245, 240, 232, 0.4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Row 2 — map spans all 3 columns */
+.detail-map-col {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-elevated);
+  border: 1.5px solid var(--color-mist);
+  height: 360px;
+}
+
+/* Leaflet container must fill the flex column */
+.detail-map-col .leaflet-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.detail-map-col__label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  background-color: var(--color-cream);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-bark);
+  border-bottom: 1px solid var(--color-mist);
+  flex-shrink: 0;
+}
+
+/* ─── Responsive breakpoints ────────────────────────────────── */
+
+/* Medium screens: main + sidebar side-by-side, hero + map full-width below */
+@media (max-width: 1024px) {
+  .detail-body--with-map {
+    grid-template-columns: 1fr 280px;
+  }
+
+  .detail-hero-col {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: static;
+    height: 320px;
+    max-height: none;
+    min-height: none;
+  }
+
+  .detail-map-col {
+    grid-row: 3;
+  }
+}
+
+/* Small screens: everything stacks */
+@media (max-width: 768px) {
+  .detail-body--with-map {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-body--with-map .detail-body__main { grid-column: 1; grid-row: 1; }
+  .detail-body--with-map .detail-sidebar    { grid-column: 1; grid-row: 2; }
+  .detail-hero-col                          { grid-column: 1; grid-row: 3; height: 260px; }
+  .detail-map-col                           { grid-column: 1; grid-row: 4; height: 260px; }
+}
+
+/* ─── Image Carousel Controls ───────────────────────────────── */
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(28, 43, 26, 0.65); /* Dark earth tone with opacity */
+  color: var(--color-cream, #FBF8F2);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  backdrop-filter: blur(4px); /* Adds a modern frosted glass effect */
+}
+
+.carousel-btn:hover {
+  background-color: rgba(28, 43, 26, 0.9);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.carousel-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.carousel-btn--prev {
+  left: 1rem;
+}
+
+.carousel-btn--next {
+  right: 1rem;
+}
+
+.carousel-counter {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background-color: rgba(28, 43, 26, 0.65);
+  color: var(--color-cream, #FBF8F2);
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
