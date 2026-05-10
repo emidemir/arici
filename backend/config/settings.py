@@ -166,7 +166,7 @@ CORS_ALLOWED_ORIGINS = [
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"{os.environ.get("REDIS_URL")}:{os.environ.get('REDIS_PORT')}/1",
+        "LOCATION": f"redis://{os.environ.get('REDIS_USERNAME')}:{os.environ.get('REDIS_PASSWORD')}@{os.environ.get('REDIS_URL')}:{os.environ.get('REDIS_PORT')}/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -224,7 +224,14 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(os.environ.get('REDIS_URL'), os.environ.get('REDIS_PORT'))],
+            "hosts": [
+                {
+                    "address": (os.environ.get('REDIS_URL'), int(os.environ.get('REDIS_PORT'))),
+                    "password": os.environ.get('REDIS_PASSWORD'),
+                    # If using Redis 6+ ACL with a username:
+                    # "username": os.environ.get('REDIS_USER'),
+                }
+            ],
         },
     },
 }
