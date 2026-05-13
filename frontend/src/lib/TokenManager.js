@@ -9,7 +9,8 @@ class TokenManager {
     setToken({ access_token, refresh_token, expires_in }) {
         this.access_token = access_token;
         this.refresh_token = refresh_token;
-        this.expires_at = Date.now() + expires_in * 1000 - 30_000;
+        // 1 hour = 60 minutes * 60 seconds * 1000 milliseconds = 3,600,000
+        this.expires_at = Date.now() + (expires_in * 1000) - 3_600_000;
 
         localStorage.setItem('access_token', this.access_token);
         localStorage.setItem('refresh_token', this.refresh_token);
