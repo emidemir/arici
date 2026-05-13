@@ -238,9 +238,13 @@ CHANNEL_LAYERS = {
 ASGI_APPLICATION = 'config.asgi.application'
 
 # ====== SSL ======
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+# These fight with Traefik's SSL termination — disable or adjust:
+SECURE_SSL_REDIRECT = False  # Traefik handles this
+SESSION_COOKIE_SECURE = True  # keep
+CSRF_COOKIE_SECURE = True     # keep
+SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+# Tell Django it's behind a trusted proxy:
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
