@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '../api/apiFetch.js';
 import { tokenManager } from '../lib/TokenManager.js';
 
 const AuthContext = createContext(null);
@@ -27,31 +28,22 @@ export function AuthProvider({ children }) {
 
   // LoginSerializer expects `username`, not `email`
   const login = useCallback(async (username, password) => {
-    const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/users/login/`, {
+    const res = await apiFetch('/users/login/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
-    });
+    }, false);
     if (!res.ok) throw new Error('Invalid credentials');
     _handleAuthResponse(await res.json());
   }, []);
-
-  // SignupView returns only { detail: "Account created." } with HTTP 201 —
-  // no tokens. So we log the user in automatically after signup.
+  
   const signup = useCallback(async ({ username, email, password, passwordConfirm }) => {
-    const signupRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/users/signup/`, {
+    const signupRes = await apiFetch('/users/signup/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        password_confirm: passwordConfirm,
-      }),
-    });
+      body: JSON.stringify({ username, email, password, password_confirm: passwordConfirm }),
+    }, false);
     if (!signupRes.ok) throw new Error('Signup failed');
-
-    // Auto-login after successful signup
     await login(username, password);
   }, [login]);
 
