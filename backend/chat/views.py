@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Conversation, Message
+from .services import broadcast_new_message
 from .serializers import (
     ConversationSerializer,
     ConversationCreateSerializer,
@@ -89,12 +90,13 @@ class ConversationListCreateView(APIView):
         # Only create a message if a body was actually provided
         body = data.get('body', '').strip()
         if body:
-            Message.objects.create(
+            message = Message.objects.create(
                 conversation=conversation,
                 sender=request.user,
                 body=body,
             )
             conversation.save(update_fields=['updated_at'])
+            broadcast_new_message(message)
 
         return Response(
             ConversationSerializer(conversation, context={'request': request}).data,
@@ -155,6 +157,7 @@ class MessageListCreateView(APIView):
             body=serializer.validated_data['body'],
         )
         conversation.save(update_fields=['updated_at'])
+        broadcast_new_message(message)
 
         return Response(
             MessageSerializer(message, context={'request': request}).data,

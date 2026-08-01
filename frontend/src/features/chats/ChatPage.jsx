@@ -180,8 +180,14 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
   // ── 2. Open WebSocket for real-time send/receive ───────────────────────
   useEffect(() => {
     let ws = null;
+    let cancelled = false;
+    let reconnectTimer = null;
+    let retryCount = 0;
+    const MAX_RECONNECT_DELAY_MS = 10_000;
 
     async function openSocket() {
+      if (cancelled) return;
+
       let token = '';
       try {
         token = await tokenManager.get_valid_token();
@@ -192,6 +198,7 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
         // the socket never connects.
         logger.warn('Could not get a token before opening chat WebSocket', err);
       }
+      if (cancelled) return;
 
       const wsHost   = process.env.REACT_APP_WS_HOST ?? window.location.host;
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -203,6 +210,7 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
 
       ws.onopen = () => {
         setWsReady(true);
+        retryCount = 0; // connected successfully — reset backoff for next time
         ws.send(JSON.stringify({ type: 'chat.read' }));
       };
 
@@ -213,6 +221,21 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
         // "chat won't connect" from a guess into something checkable.
         if (event.code !== 1000) {
           logger.warn(`Chat WebSocket closed (code ${event.code})`);
+        }
+        // There was previously NO recovery here at all: if the socket
+        // dropped for any reason (an idle proxy timeout, a network blip,
+        // a laptop going to sleep) while the user stayed on the same
+        // conversation without navigating away, nothing ever
+        // re-established it — new messages and read receipts would just
+        // silently stop arriving live until a manual reload, which looks
+        // exactly like "the read mark doesn't update until I refresh."
+        // Code 1000 is a normal, intentional closure (this component's own
+        // cleanup below uses it) and should never trigger a reconnect.
+        if (!cancelled && event.code !== 1000) {
+          const delay = Math.min(1000 * 2 ** retryCount, MAX_RECONNECT_DELAY_MS);
+          retryCount += 1;
+          logger.warn(`Reconnecting chat WebSocket in ${delay}ms`);
+          reconnectTimer = setTimeout(openSocket, delay);
         }
       };
       ws.onerror = (event) => {
@@ -274,7 +297,16 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
     openSocket();
 
     return () => {
-      if (ws) ws.close();
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      // Explicit code 1000 (Normal Closure) — this is what the onclose
+      // handler above checks for to distinguish "we did this on purpose"
+      // (switching conversations, unmounting) from "the connection died,"
+      // so it must be passed explicitly: a bare ws.close() sends no status
+      // code at all, which browsers surface as 1005, and would otherwise
+      // make this intentional cleanup try to reconnect a socket for a
+      // conversation the user has already navigated away from.
+      if (ws) ws.close(1000);
       wsRef.current = null;
       setWsReady(false);
     };
