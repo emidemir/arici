@@ -1,0 +1,139 @@
+/* ─── Page Shell ────────────────────────────────────────────── */
+.dashboard-page {
+  min-height: calc(100vh - 64px);
+  background-color: var(--color-parchment);
+  padding: 2.5rem 2rem 4rem;
+}
+
+/* ─── Header ────────────────────────────────────────────────── */
+.dashboard-header {
+  margin-bottom: 2rem;
+}
+
+.dashboard-header__eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-sage);
+  margin-bottom: 0.35rem;
+}
+
+.dashboard-header__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  color: var(--color-soil);
+  line-height: 1.15;
+  margin-bottom: 0.4rem;
+}
+
+.dashboard-header__title em {
+  font-style: italic;
+  color: var(--color-moss);
+}
+
+.dashboard-header__subtitle {
+  font-size: 0.875rem;
+  color: var(--color-bark);
+}
+
+/* ─── Stats Strip ───────────────────────────────────────────── */
+.dashboard-stats {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.25rem 1.75rem;
+  background: var(--color-cream);
+  border: 1.5px solid var(--color-mist);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-card);
+}
+
+.dashboard-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard-stat__value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--color-soil);
+}
+
+.dashboard-stat__label {
+  font-size: 0.78rem;
+  color: var(--color-bark);
+}
+
+.dashboard-stat__sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-mist);
+}
+
+/* ─── Inline error ──────────────────────────────────────────── */
+.dashboard-inline-error {
+  font-size: 0.85rem;
+  color: #C0392B;
+  margin: 0 0 1.5rem;
+}
+
+.dashboard-inline-error__retry {
+  background: none;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+}
+
+/* ─── Action Cards ──────────────────────────────────────────── */
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.dashboard-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  text-align: left;
+  padding: 1.5rem;
+  background: var(--color-cream);
+  border: 1.5px solid var(--color-mist);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font-body);
+}
+
+.dashboard-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
+  border-color: var(--color-sage);
+}
+
+.dashboard-action-card__icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.dashboard-action-card__title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-soil);
+}
+
+.dashboard-action-card__desc {
+  font-size: 0.8rem;
+  color: var(--color-bark);
+}

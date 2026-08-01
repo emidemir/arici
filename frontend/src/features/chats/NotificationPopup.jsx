@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '../../api/apiFetch';
 import { Link, useNavigate } from 'react-router-dom';
+import { logger } from '../../lib/logger';
 import '../../styles/chats/NotificationPopup.css'
 
 /* ─── Helpers ───────────────────────────────────────────────── */
@@ -31,17 +32,23 @@ export default function NotificationPopup({ onClose, onRead, onReadAll }) {
 
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
 
   /* ── Fetch notifications ──────────────────────────────────── */
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/notifications/`);
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data = await res.json();
       setNotifications(data.results ?? data);
-    } catch {
-      // silently fail — UI shows empty state
+    } catch (err) {
+      // This used to fail with an empty `catch {}` and just a comment
+      // saying "UI shows empty state" — meaning a genuine fetch failure
+      // was indistinguishable from "you have no notifications".
+      logger.error('Failed to load notifications', err);
+      setError('Could not load notifications.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +72,12 @@ export default function NotificationPopup({ onClose, onRead, onReadAll }) {
     );
     try {
       await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/notifications/${id}/read/`, { method: 'PATCH' });
-    } catch { }
+    } catch (err) {
+      // The optimistic update above already happened, so this is
+      // deliberately non-blocking — but it used to be a bare `catch {}`
+      // with no record at all of the PATCH ever failing.
+      logger.error(`Failed to mark notification ${id} as read`, err);
+    }
   };
 
   /* ── Mark all as read ─────────────────────────────────────── */
@@ -74,7 +86,9 @@ export default function NotificationPopup({ onClose, onRead, onReadAll }) {
     onReadAll?.(); // ← drops badge to 0 immediately in Navbar
     try {
       await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/notifications/read-all/`, { method: 'POST' });
-    } catch { }
+    } catch (err) {
+      logger.error('Failed to mark all notifications as read', err);
+    }
   };
 
   /* ── Handle click on a notification ──────────────────────── */
@@ -121,6 +135,14 @@ export default function NotificationPopup({ onClose, onRead, onReadAll }) {
               <div className="loading-dot" />
               <div className="loading-dot" />
             </div>
+          </div>
+        ) : error ? (
+          <div className="notif-popup__empty">
+            <span className="notif-popup__empty-icon">⚠️</span>
+            <p className="notif-popup__empty-text">{error}</p>
+            <button className="btn btn-secondary" onClick={fetchNotifications} style={{ marginTop: '0.5rem' }}>
+              Retry
+            </button>
           </div>
         ) : notifications.length === 0 ? (
           <div className="notif-popup__empty">
@@ -179,7 +201,10 @@ export function useUnreadNotifCount() {
   const poll = useCallback(async () => {
     try {
       const res  = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/notifications/unread-count/`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        logger.warn(`Notification count poll failed: ${res.status}`);
+        return;
+      }
       const data = await res.json();
       const n    = data.count ?? 0;
       if (n > prevCount.current) {
@@ -188,7 +213,12 @@ export function useUnreadNotifCount() {
       }
       prevCount.current = n;
       setCount(n);
-    } catch { }
+    } catch (err) {
+      // Deliberately non-blocking — this polls every 30s, so a single
+      // missed poll shouldn't show an error anywhere. It should still be
+      // logged, though, rather than vanishing with a bare `catch {}`.
+      logger.error('Notification count poll failed', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -208,10 +238,15 @@ export function useUnreadChatCount() {
     async function poll() {
       try {
         const res = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/chats/unread-count/`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          logger.warn(`Chat unread count poll failed: ${res.status}`);
+          return;
+        }
         const data = await res.json();
         setCount(data.count ?? 0);
-      } catch { /* ignore */ }
+      } catch (err) {
+        logger.error('Chat unread count poll failed', err);
+      }
     }
     poll();
     const id = setInterval(poll, 20000);

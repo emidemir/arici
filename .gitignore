@@ -55,6 +55,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Patch files
+arici-logging-and-error-handling.patch
+
 # Translations
 *.mo
 *.pot

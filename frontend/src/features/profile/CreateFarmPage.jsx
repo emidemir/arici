@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { apiFetch } from '../../api/apiFetch'; 
+import { extractErrorMessage, parseResponseBody } from '../../lib/errorMessage';
+import { useAuth } from '../../context/AuthContext';
+import { logger } from '../../lib/logger';
 import '../../styles/profile/CreateFarmPage.css';
 
 // Note: Ensure you have leaflet CSS imported somewhere in your app (e.g., App.js or index.html)
@@ -52,6 +55,7 @@ function LocationMarker({ position, setPosition }) {
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function CreateFarmPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const fileInputRef = useRef(null);
 
   /* ── Form State ───────────────────────────────────────────── */
@@ -114,13 +118,10 @@ export default function CreateFarmPage() {
     setError(null);
     setFieldErrors({});   // ← reset on each submit
   
-    const currentUserStr = localStorage.getItem('user');
-    const currentUser = currentUserStr ? JSON.parse(currentUserStr) : {};
-  
     const payload = {
       ...form,
       location: position ? `${position.lat},${position.lng}` : '',
-      user: currentUser.id,
+      user: user?.id,
     };
   
     try {
@@ -132,47 +133,62 @@ export default function CreateFarmPage() {
   
       if (!res.ok) {
         // ← Parse Django's field-level error response
-        const body = await res.json().catch(() => ({}));
-        if (typeof body === 'object' && !body.detail) {
+        const body = await parseResponseBody(res);
+        if (body && typeof body === 'object' && !body.detail) {
           // Shape: { description: ["Ensure this field has no more than 500 characters."], ... }
           setFieldErrors(body);
-          if (typeof body === 'object' && !body.detail) {
-            setFieldErrors(body);
-          
-            // Scroll to the first field with an error
-            const firstErrorKey = Object.keys(body)[0];
-            const fieldMap = {
-              district:    '[name="district"]',
-              city:        '[name="city"]',
-              region:      '[name="region"]',
-              acres:       '[name="acres"]',
-              description: '[name="description"]',
-              location:    '.cfp-map-container',
-              crop:        '.cfp-crop-grid',
-            };
-            const selector = fieldMap[firstErrorKey];
-            if (selector) {
-              const el = document.querySelector(selector);
-              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              el?.focus?.();
-            }
-          
-            throw new Error('Please fix the errors highlighted below.');
+
+          // Scroll to the first field with an error
+          const firstErrorKey = Object.keys(body)[0];
+          const fieldMap = {
+            district:    '[name="district"]',
+            city:        '[name="city"]',
+            region:      '[name="region"]',
+            acres:       '[name="acres"]',
+            description: '[name="description"]',
+            location:    '.cfp-map-container',
+            crop:        '.cfp-crop-grid',
+          };
+          const selector = fieldMap[firstErrorKey];
+          if (selector) {
+            const el = document.querySelector(selector);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el?.focus?.();
           }
+
+          throw new Error('Please fix the errors highlighted below.');
         }
-        throw new Error(body.detail ?? `Request failed (${res.status})`);
+        throw new Error(extractErrorMessage(body, `Request failed (${res.status})`));
       }
   
       const newFarm = await res.json();
   
       if (images.length > 0) {
+        // Previously these upload requests had no error handling
+        // whatsoever — not even a `.ok` check — so a failed image upload
+        // (bad file, network hiccup, storage misconfigured) during listing
+        // creation was completely invisible. The farm itself is already
+        // created at this point, so a failed photo shouldn't block
+        // navigation or show a scary top-level error; it should just be
+        // logged so it's traceable, and the user can re-add photos from
+        // the listing's detail page afterward.
+        const failedUploads = [];
         for (const file of images) {
           const formData = new FormData();
           formData.append('image', file);
-          await apiFetch(
-            `${process.env.REACT_APP_BACKEND_URL}/farms/myfarms/${newFarm.id}/images/upload/`,
-            { method: 'POST', body: formData }
-          );
+          try {
+            const uploadRes = await apiFetch(
+              `${process.env.REACT_APP_BACKEND_URL}/farms/myfarms/${newFarm.id}/images/upload/`,
+              { method: 'POST', body: formData }
+            );
+            if (!uploadRes.ok) failedUploads.push(file.name);
+          } catch (uploadErr) {
+            logger.error(`Failed to upload image "${file.name}" for new farm ${newFarm.id}`, uploadErr);
+            failedUploads.push(file.name);
+          }
+        }
+        if (failedUploads.length) {
+          logger.warn(`Farm ${newFarm.id} was created, but ${failedUploads.length} photo(s) failed to upload: ${failedUploads.join(', ')}`);
         }
       }
   
@@ -219,7 +235,7 @@ export default function CreateFarmPage() {
                   onChange={e => set('district', e.target.value)}
                   required
                 />
-                <FieldError name="District" errors={fieldErrors} />
+                <FieldError name="district" errors={fieldErrors} />
               </div>
 
               <div className="cfp-field">

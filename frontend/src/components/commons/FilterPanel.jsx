@@ -9,10 +9,19 @@ const ALL_CROPS = [
   'Sesame', 'Watermelons', 'Hazelnuts', 'Tea', 'Cotton'
 ];
 
-// 2. Updated to match backend REGIONS list exactly 
+// 2. Updated to match backend REGIONS list exactly
 // (Keeping 'All Regions' for the reset state)
+//
+// This first entry used to be the Turkish 'Tüm Bölgeler' ("All Regions"),
+// but every other place in the app that means "no region filter" — the
+// initial state in ExplorePage.jsx, the query-building in FarmlandMap.jsx,
+// clearAll() below — compares against the literal string 'All Regions'.
+// Selecting this entry therefore did NOT reset the filter: it set
+// filters.region to 'Tüm Bölgeler', which isn't a valid RegionChoices value
+// on the backend, so `qs.filter(region='Tüm Bölgeler')` matched zero
+// farms. The "show everything" option silently showed nothing.
 const REGIONS = [
-  'Tüm Bölgeler',
+  'All Regions',
   'IC_ANADOLU',
   'EGE',
   'MARMARA',

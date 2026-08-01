@@ -31,7 +31,7 @@ class FarmSummarySerializer(serializers.Serializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_id   = serializers.UUIDField(source='sender.id',        read_only=True)
-    sender_name = serializers.CharField(source='sender.full_name',    read_only=True)
+    sender_name = serializers.SerializerMethodField()
     is_mine     = serializers.SerializerMethodField()
 
     class Meta:
@@ -44,6 +44,20 @@ class MessageSerializer(serializers.ModelSerializer):
             'id', 'conversation', 'sender_id', 'sender_name',
             'is_read', 'is_mine', 'created_at',
         ]
+
+    def get_sender_name(self, obj):
+        # 'full_name' isn't an actual field/property on the User model —
+        # this used to be `serializers.CharField(source='sender.full_name',
+        # read_only=True)`, which relies on DRF resolving the dotted
+        # attribute path itself. Since the field is read_only (so DRF
+        # treats it as not required), a missing attribute doesn't raise —
+        # DRF just silently omits the field from the response entirely
+        # (SkipField). That meant every message loaded via this REST
+        # serializer had no `sender_name` at all, so the chat UI showed a
+        # blank sender label for message history (while messages delivered
+        # live over the WebSocket were fine, because consumer.py already
+        # builds sender_name with this same getattr fallback manually).
+        return getattr(obj.sender, 'full_name', obj.sender.username)
 
     def get_is_mine(self, obj):
         request = self.context.get('request')

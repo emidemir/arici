@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiFetch } from '../../api/apiFetch'; // Adjust the import path if necessary
+import { extractErrorMessageFromResponse } from '../../lib/errorMessage';
+import { logger } from '../../lib/logger';
 import '../../styles/profile/MyFarmDetail.css';
 
 /* ─── Constants ─────────────────────────────────────────────── */
@@ -41,7 +43,7 @@ function deepEqual(a, b) {
 
 
 /* ─── Delete Confirm Modal ──────────────────────────────────── */
-function DeleteModal({ farmName, onClose, onConfirm }) {
+function DeleteModal({ farmName, error, onClose, onConfirm }) {
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const confirmed = confirmText.trim().toLowerCase() === 'delete';
@@ -69,6 +71,11 @@ function DeleteModal({ farmName, onClose, onConfirm }) {
             You're about to permanently remove <strong>{farmName}</strong>. This will
             delete all photos, data, and beekeeper connections associated with this listing.
           </p>
+          {error && (
+            <p style={{ fontSize: '0.82rem', color: '#C0392B', marginTop: '0.5rem' }}>
+              ⚠️ {error}
+            </p>
+          )}
           <div>
             <p style={{ fontSize: '0.78rem', color: 'var(--color-bark)', marginBottom: '0.4rem', opacity: 0.7 }}>
               Type <strong style={{ color: 'var(--color-soil)' }}>delete</strong> to confirm
@@ -117,11 +124,13 @@ export default function MyFarmDetail() {
   /* ── Image state ──────────────────────────────────────────── */
   const [heroIndex, setHeroIndex]     = useState(0);
   const [uploading, setUploading]     = useState(false);
+  const [imageError, setImageError]   = useState(null);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const uploadRef = useRef(null);
 
   /* ── UI ───────────────────────────────────────────────────── */
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   /* ── Dirty detection ──────────────────────────────────────── */
   const isDirty = farm && draft && !deepEqual(
@@ -183,7 +192,13 @@ export default function MyFarmDetail() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft),
       });
-      if (!res.ok) throw new Error('Save failed. Please try again.');
+      if (!res.ok) {
+        // This used to always say "Save failed. Please try again." no
+        // matter what the backend actually rejected — including the
+        // FarmSerializer's specific, helpful messages like "Invalid
+        // location format. Expected 'lat,lng'." The user never saw those.
+        throw new Error(await extractErrorMessageFromResponse(res, 'Save failed. Please try again.'));
+      }
       const updated = await res.json();
       setFarm(updated);
     } catch (err) {
@@ -198,6 +213,7 @@ const handleImageUpload = async (e) => {
   const files = Array.from(e.target.files);
   if (!files.length) return;
   setUploading(true);
+  setImageError(null);
   try {
     for (const file of files) {
       const formData = new FormData();
@@ -209,7 +225,9 @@ const handleImageUpload = async (e) => {
         body: formData, // Do NOT set Content-Type header manually for FormData
       });
       
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        throw new Error(await extractErrorMessageFromResponse(res, 'Upload failed.'));
+      }
       const newImage = await res.json(); // Now returns { id, image }
       
       setFarm(prev => ({
@@ -218,7 +236,11 @@ const handleImageUpload = async (e) => {
       }));
     }
   } catch (err) {
-    console.error('Image upload error:', err);
+    // This used to only be console.error'd, so a failed upload (wrong file
+    // type, too large, MinIO/S3 misconfigured, ...) looked to the user like
+    // nothing happened at all — no spinner error, no message, just silence.
+    logger.error('Image upload error', err);
+    setImageError(err.message || 'Could not upload that image. Please try again.');
   } finally {
     setUploading(false);
     if (uploadRef.current) uploadRef.current.value = '';
@@ -227,13 +249,16 @@ const handleImageUpload = async (e) => {
 
 /* ── Image delete ─────────────────────────────────────────── */
 const handleImageDelete = async (imageId, idx) => {
+  setImageError(null);
   try {
     // Use apiFetch targeting the custom backend @action
     const res = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/farms/myfarms/${id}/images/${imageId}/delete/`, {
       method: 'DELETE',
     });
     
-    if (!res.ok) throw new Error('Delete failed');
+    if (!res.ok) {
+      throw new Error(await extractErrorMessageFromResponse(res, 'Could not delete that photo.'));
+    }
 
     setFarm(prev => {
       const updated = prev.images.filter(img => img.id !== imageId);
@@ -241,21 +266,29 @@ const handleImageDelete = async (imageId, idx) => {
     });
     setHeroIndex(prev => Math.max(0, prev === idx ? 0 : prev > idx ? prev - 1 : prev));
   } catch (err) {
-    console.error('Image delete error:', err);
+    logger.error('Image delete error', err);
+    setImageError(err.message || 'Could not delete that photo. Please try again.');
   }
 };
 
   /* ── Delete farm ──────────────────────────────────────────── */
   const handleDeleteFarm = async () => {
+    setDeleteError(null);
     try {
       // Replaced plain fetch with apiFetch and updated DRF ViewSet URL pattern
       const res = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/farms/myfarms/${id}/`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Delete failed');
+      if (!res.ok) {
+        throw new Error(await extractErrorMessageFromResponse(res, 'Could not delete this listing.'));
+      }
       navigate('/profile/farms/');
     } catch (err) {
-      console.error(err);
+      // Previously only console.error'd — the modal's button would just
+      // return to "Remove permanently" with the modal still open and
+      // absolutely no indication that anything had gone wrong.
+      logger.error('Delete farm failed', err);
+      setDeleteError(err.message);
     }
   };
 
@@ -322,6 +355,11 @@ const handleImageDelete = async (imageId, idx) => {
         <p className="mfd-image-manager__label">
           Photos · {images.length} {images.length === 1 ? 'image' : 'images'} · click a thumbnail to set as hero
         </p>
+        {imageError && (
+          <p style={{ fontSize: '0.82rem', color: '#C0392B', margin: '0 0 0.75rem' }}>
+            ⚠️ {imageError}
+          </p>
+        )}
         <div className="mfd-image-strip">
 
           {images.map((img, idx) => (
@@ -580,7 +618,8 @@ const handleImageDelete = async (imageId, idx) => {
       {showDeleteModal && (
         <DeleteModal
           farmName={farmName}
-          onClose={() => setShowDeleteModal(false)}
+          error={deleteError}
+          onClose={() => { setShowDeleteModal(false); setDeleteError(null); }}
           onConfirm={handleDeleteFarm}
         />
       )}

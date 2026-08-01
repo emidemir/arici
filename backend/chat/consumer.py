@@ -1,6 +1,7 @@
 # chat/consumer.py
 
 import json
+import logging
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
@@ -13,6 +14,7 @@ from notifications.models import Notification
 from .models import Conversation, Message
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -193,7 +195,22 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             validated = AccessToken(raw_token)
             user_id = validated['user_id']
             return User.objects.get(pk=user_id)
-        except (InvalidToken, TokenError, User.DoesNotExist, Exception):
+        except (InvalidToken, TokenError, User.DoesNotExist) as e:
+            # Expected/routine: missing, expired, or malformed token, or a
+            # token for a user that no longer exists. Not worth more than a
+            # debug line — this happens constantly for logged-out visitors.
+            logger.debug("WebSocket auth rejected: %s", e)
+            return None
+        except Exception:
+            # Anything else (a bad query string, a DB hiccup, ...) is *not*
+            # a routine auth failure — it's a bug or an infra problem, and
+            # silently treating it the same as "bad token" (the previous
+            # behavior — this branch used to be lumped into the tuple above
+            # as a bare `Exception`) made it indistinguishable from a
+            # visitor just not being logged in. Log it with a traceback so
+            # it's actually findable, but still decline the connection
+            # rather than crashing the whole consumer.
+            logger.exception("Unexpected error authenticating WebSocket connection")
             return None
 
     @database_sync_to_async

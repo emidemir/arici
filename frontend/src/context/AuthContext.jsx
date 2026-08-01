@@ -1,16 +1,37 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api/apiFetch.js';
 import { tokenManager } from '../lib/TokenManager.js';
+import { extractErrorMessageFromResponse } from '../lib/errorMessage.js';
+import { logger } from '../lib/logger.js';
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
+// Reading `user` back out of localStorage used to be a bare
+// `JSON.parse(stored)` with no try/catch. If that value is ever anything
+// other than well-formed JSON — corrupted by a previous bug, edited by a
+// browser extension, truncated by the browser, whatever — JSON.parse
+// throws *during the initial useState() call*, before a single route or
+// component has rendered. That crash happens above the router entirely
+// (AuthProvider wraps RouterProvider in index.js), so it isn't something
+// an error boundary around the router can catch — the whole app fails to
+// mount, with just a blank page and a console error nobody but a developer
+// will ever see. This degrades to "log the user out" instead.
+function readStoredUser() {
+  const stored = localStorage.getItem('user');
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch (error) {
+    logger.error('Corrupted "user" value in localStorage — clearing it', error);
+    localStorage.removeItem('user');
+    return null;
+  }
+}
 
-  // Login response shape: { user_id, access_token, refresh_token }
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(readStoredUser);
+
+  // Login response shape: { user_id, username, email, access_token, refresh_token }
   const _handleAuthResponse = (data) => {
     const tokenPayload = JSON.parse(atob(data.access_token.split('.')[1]));
     const expiresInSeconds = tokenPayload.exp - Math.floor(Date.now() / 1000);
@@ -21,7 +42,7 @@ export function AuthProvider({ children }) {
       expires_in: expiresInSeconds,
     });
 
-    const user = { id: data.user_id };
+    const user = { id: data.user_id, username: data.username, email: data.email };
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
   };
@@ -33,17 +54,34 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     }, false);
-    if (!res.ok) throw new Error('Invalid credentials');
+    if (!res.ok) {
+      // Previously this always threw a hardcoded "Invalid credentials",
+      // regardless of what actually went wrong — a 429 from the rate
+      // limiter, a 500 from a backend bug, anything. The login form would
+      // faithfully display that wrong message every time. Surface what the
+      // server actually said instead.
+      const message = await extractErrorMessageFromResponse(res, 'Invalid credentials.');
+      logger.warn(`Login failed (${res.status})`, message);
+      throw new Error(message);
+    }
     _handleAuthResponse(await res.json());
   }, []);
-  
+
   const signup = useCallback(async ({ username, email, password, passwordConfirm }) => {
     const signupRes = await apiFetch('/users/signup/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password, password_confirm: passwordConfirm }),
     }, false);
-    if (!signupRes.ok) throw new Error('Signup failed');
+    if (!signupRes.ok) {
+      // Same fix as login(): this used to always say "Signup failed",
+      // hiding messages like "A user with this email already exists." or
+      // "Passwords do not match." that the backend serializer already
+      // produces perfectly well.
+      const message = await extractErrorMessageFromResponse(signupRes, 'Signup failed. Please try again.');
+      logger.warn(`Signup failed (${signupRes.status})`, message);
+      throw new Error(message);
+    }
     await login(username, password);
   }, [login]);
 

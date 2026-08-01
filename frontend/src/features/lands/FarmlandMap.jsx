@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { apiFetch } from '../../api/apiFetch';
+import { extractErrorMessageFromResponse } from '../../lib/errorMessage';
 import '../../styles/lands/FarmlandMap.css';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ function makeClusterIcon(count) {
 
 // ─── Inner component — has access to the Leaflet map instance ─────────────────
 
-function MapInner({ filters, onClusters, onLoading, onError }) {
+function MapInner({ filters, retryToken, onClusters, onLoading, onError }) {
   const map = useMap();
 
   const fetchClusters = useCallback(async () => {
@@ -98,13 +99,15 @@ function MapInner({ filters, onClusters, onLoading, onError }) {
       });
       
       const response = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/farms/clusters/?${params}`);
-      if (!response.ok) throw new Error('Cluster fetch failed');
+      if (!response.ok) {
+        throw new Error(await extractErrorMessageFromResponse(response, 'Could not load farmlands for this area.'));
+      }
       const data = await response.json();
       onClusters(data.clusters ?? []);
 
     } catch (err) {
       console.error('Cluster fetch failed:', err);
-      onError(true);
+      onError(err.message || 'Could not load farmlands for this area.');
     } finally {
       onLoading(false);
     }
@@ -113,7 +116,8 @@ function MapInner({ filters, onClusters, onLoading, onError }) {
   // ── FIX 1: fetch on mount via useEffect ───────────────────────────────────
   useEffect(() => {
     fetchClusters();
-  }, [fetchClusters]); // also re-fetches when filters change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchClusters, retryToken]); // also re-fetches when filters change, or the Retry button is clicked
 
   // ── Also fetch on pan / zoom ──────────────────────────────────────────────
   useMapEvents({
@@ -137,6 +141,7 @@ export default function FarmlandMap({ filters = {} }) {
   const [clusters, setClusters] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   const renderMarkers = () =>
     clusters.map((cluster, i) => {
@@ -204,7 +209,16 @@ export default function FarmlandMap({ filters = {} }) {
         </div>
       )}
       {error && !loading && (
-        <p></p>
+        <div className="map-error-banner" role="alert">
+          <span>⚠️ {error}</span>
+          <button
+            type="button"
+            className="map-error-banner__retry"
+            onClick={() => setRetryToken(t => t + 1)}
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       <MapContainer
@@ -223,6 +237,7 @@ export default function FarmlandMap({ filters = {} }) {
         {/* MapInner lives inside MapContainer so useMap() works */}
         <MapInner
           filters={filters}
+          retryToken={retryToken}
           onClusters={setClusters}
           onLoading={setLoading}
           onError={setError}

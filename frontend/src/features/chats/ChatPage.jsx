@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../api/apiFetch';
 import { tokenManager } from '../../lib/TokenManager';
 import { useAuth } from '../../context/AuthContext';
+import { logger } from '../../lib/logger';
 import '../../styles/chats/ChatPage.css';
 
 /* ─── Constants ─────────────────────────────────────────────── */
@@ -160,10 +161,16 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
         const res = await apiFetch(
           `${process.env.REACT_APP_BACKEND_URL}/chats/conversations/${conversation.id}/messages/`
         );
-        if (!res.ok) throw new Error('Failed');
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         const data = await res.json();
         if (!cancelled) setMessages(data.results ?? data);
-      } catch { /* silently fail — WS still works */ }
+      } catch (err) {
+        // Non-blocking on purpose — the WebSocket connection below still
+        // works for new messages even if history fails to load, so this
+        // doesn't show a blocking error screen. It used to not even log
+        // anything, though, which made "why is history empty" unanswerable.
+        logger.error(`Failed to load message history for conversation ${conversation.id}`, err);
+      }
       finally  { if (!cancelled) setLoading(false); }
     }
     load();
@@ -178,8 +185,12 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
       let token = '';
       try {
         token = await tokenManager.get_valid_token();
-      } catch {
-        // Not authenticated — consumer will reject the connection
+      } catch (err) {
+        // Not authenticated — the consumer will reject the connection
+        // (close code 4001) rather than this throwing again, so this is
+        // still non-fatal, but it used to give zero indication of *why*
+        // the socket never connects.
+        logger.warn('Could not get a token before opening chat WebSocket', err);
       }
 
       const wsHost   = process.env.REACT_APP_WS_HOST ?? window.location.host;
@@ -195,8 +206,19 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
         ws.send(JSON.stringify({ type: 'chat.read' }));
       };
 
-      ws.onclose = () => setWsReady(false);
-      ws.onerror = () => setWsReady(false);
+      ws.onclose = (event) => {
+        setWsReady(false);
+        // Codes 4001 (auth failed) / 4004 (not a participant) come from
+        // ChatConsumer.connect() in the backend — logging the code turns
+        // "chat won't connect" from a guess into something checkable.
+        if (event.code !== 1000) {
+          logger.warn(`Chat WebSocket closed (code ${event.code})`);
+        }
+      };
+      ws.onerror = (event) => {
+        setWsReady(false);
+        logger.error('Chat WebSocket error', event);
+      };
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -240,6 +262,7 @@ function MessageThread({ conversation, currentUserId, onMessageSent }) {
         }
 
         if (data.type === 'chat.error') {
+          logger.warn(`Server rejected chat message: ${data.message}`);
           setMessages(prev =>
             prev.map(m => m.status === 'sending' ? { ...m, status: 'failed' } : m)
           );
@@ -504,6 +527,7 @@ export default function ChatPage() {
 
   const [conversations, setConversations]   = useState([]);
   const [loadingConvos, setLoadingConvos]   = useState(true);
+  const [convosError, setConvosError]       = useState(null);
   const [activeConvoId, setActiveConvoId]   = useState(
     initialConvoId ? Number(initialConvoId) : null
   );
@@ -513,13 +537,19 @@ export default function ChatPage() {
   // ── Fetch conversation list ────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
     setLoadingConvos(true);
+    setConvosError(null);
     try {
       const res = await apiFetch(`${process.env.REACT_APP_BACKEND_URL}/chats/conversations/`);
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data = await res.json();
       setConversations(data.results ?? data);
-    } catch { /* silently fail */ }
-    finally { setLoadingConvos(false); }
+    } catch (err) {
+      // This used to fail completely silently with no error state at all,
+      // so a failed fetch and "you have no conversations yet" rendered
+      // identically — there was no way to tell the difference from the UI.
+      logger.error('Failed to load conversations', err);
+      setConvosError('Could not load your conversations.');
+    } finally { setLoadingConvos(false); }
   }, []);
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
@@ -596,6 +626,14 @@ export default function ChatPage() {
                 <div className="loading-dot" />
                 <div className="loading-dot" />
               </div>
+            </div>
+          ) : convosError ? (
+            <div className="chat-convo-empty">
+              <span className="chat-convo-empty__icon">⚠️</span>
+              <p className="chat-convo-empty__text">{convosError}</p>
+              <button className="btn btn-secondary" onClick={fetchConversations} style={{ marginTop: '0.5rem' }}>
+                Retry
+              </button>
             </div>
           ) : filteredConvos.length === 0 ? (
             <div className="chat-convo-empty">

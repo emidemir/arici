@@ -1,5 +1,7 @@
 # chat/views.py
 
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -20,6 +22,7 @@ from .serializers import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 # ── Pagination ────────────────────────────────────────────────────────────────
@@ -76,7 +79,7 @@ class ConversationListCreateView(APIView):
         farm = None
         if data.get('farm_id'):
             from farm.models import Farm
-            print(f"Looking up Farm pk={data['farm_id']} type={type(data['farm_id'])}")
+            logger.debug("Looking up Farm pk=%s type=%s", data['farm_id'], type(data['farm_id']))
             farm = get_object_or_404(Farm, pk=data['farm_id'])
 
         conversation, _ = Conversation.get_or_create_for_users(

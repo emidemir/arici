@@ -24,12 +24,15 @@ import FarmlandDetail from './features/lands/FarmlandDetail'
 import ChatPage from './features/chats/ChatPage'
 
 import NotFound from './components/commons/NotFound'
+import ErrorBoundary from './components/commons/ErrorBoundary'
+import RouteErrorBoundary from './components/commons/RouteErrorBoundary'
 
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       // Public Routes
       { index: true, element: <RootRedirect /> },
@@ -58,9 +61,16 @@ const router = createBrowserRouter([
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router}/>
-    </AuthProvider>
+    {/* This top-level boundary is for crashes *outside* the router's own
+        error handling — e.g. AuthProvider's initial render, which reads
+        and parses localStorage before the router even mounts (see the
+        safe-parse fix in AuthContext.jsx). The router's own errorElement
+        above only catches errors thrown by routed page components. */}
+    <ErrorBoundary label="app root">
+      <AuthProvider>
+        <RouterProvider router={router}/>
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 

@@ -32,6 +32,12 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
+        # self.context.get("request") is None unless the view passes
+        # context={'request': request} when instantiating this serializer —
+        # authenticate() accepts request=None just fine, but any auth
+        # backend that inspects the request (throttling, audit logging,
+        # etc.) silently gets nothing to work with if it's missing. See the
+        # `context={'request': request}` fix in user/views.py:LoginView.
         user = authenticate(
             request=self.context.get("request"),
             username=attrs["username"],

@@ -88,7 +88,6 @@ export default function FarmlandDetail() {
 
   // ── Start / resume a conversation with the farmer ──────────────────────
   const handleSendMessage = async () => {
-    console.log(farm.id)
     if (!currentUser) {
       navigate('/login');
       return;

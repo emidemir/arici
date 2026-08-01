@@ -66,12 +66,23 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         count = kwargs['count']
         
-        # Ensure a User exists
-        user, created = User.objects.get_or_create(
-            username='mock_farmer',
-            defaults={'email': 'ciftci@example.com', 'password': 'mockpassword123'}
-        )
-        if created:
+        # Ensure a User exists.
+        # NOTE: this used to be `User.objects.get_or_create(..., defaults=
+        # {'password': 'mockpassword123'})`. `defaults` sets the field
+        # directly, bypassing Django's password hashing entirely — the
+        # user's password would literally be the string "mockpassword123"
+        # in the database, which check_password() can never match, so this
+        # account could never actually log in and would just fail with
+        # "Invalid credentials" (silently, with no indication *why* it
+        # never authenticates). create_user() hashes it properly.
+        try:
+            user = User.objects.get(username='mock_farmer')
+        except User.DoesNotExist:
+            user = User.objects.create_user(
+                username='mock_farmer',
+                email='ciftci@example.com',
+                password='mockpassword123',
+            )
             self.stdout.write(self.style.SUCCESS(f'Created dummy user: {user.username}'))
 
         farms_to_create = []
