@@ -304,7 +304,8 @@ CHANNEL_LAYERS = {
         "CONFIG": {
             "hosts": [
                 {
-                    "address": (REDIS_HOST, REDIS_PORT),
+                    "host": REDIS_HOST,
+                    "port": REDIS_PORT,
                     "password": REDIS_PASSWORD,
                     **({"username": REDIS_USERNAME} if REDIS_USERNAME else {}),
                 }
@@ -405,4 +406,3 @@ LOGGING = {
         'config': {'handlers': ['console'], 'level': DJANGO_LOG_LEVEL, 'propagate': False},
     },
 }
-
