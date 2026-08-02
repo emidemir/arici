@@ -584,7 +584,15 @@ export default function ChatPage() {
     } finally { setLoadingConvos(false); }
   }, []);
 
-  useEffect(() => { fetchConversations(); }, [fetchConversations]);
+  useEffect(() => {
+    fetchConversations();
+    // Same instant-refresh pattern as the unread-count badges — a brand
+    // new conversation, or a message arriving in one not currently open,
+    // now shows up in the sidebar immediately instead of on the next poll
+    // or a manual reload.
+    window.addEventListener('chat:new-message', fetchConversations);
+    return () => window.removeEventListener('chat:new-message', fetchConversations);
+  }, [fetchConversations]);
 
   // ── Sync URL param → active conversation ──────────────────────────────
   useEffect(() => {

@@ -1,0 +1,484 @@
+diff --git a/backend/chat/consumer.py b/backend/chat/consumer.py
+index a285b00..1f6384b 100644
+--- a/backend/chat/consumer.py
++++ b/backend/chat/consumer.py
+@@ -17,9 +17,53 @@ User = get_user_model()
+ logger = logging.getLogger(__name__)
+ 
+ 
+-class ChatConsumer(AsyncJsonWebsocketConsumer):
++class TokenAuthConsumerMixin:
+     """
+-    WebSocket consumer for real-time chat.
++    Shared JWT-from-query-string authentication for WebSocket consumers.
++
++    Browsers can't set Authorization headers on WebSocket connections, so
++    the frontend passes the JWT as ?token=<jwt> in the connection URL
++    instead. Used by both ChatConsumer (per-conversation rooms) and
++    UserNotifyConsumer (the per-user "you have new activity" channel) —
++    extracted here so the two don't drift out of sync with each other.
++    """
++
++    @database_sync_to_async
++    def _authenticate_from_query_string(self):
++        try:
++            query_string = self.scope.get('query_string', b'').decode()
++            params = dict(
++                pair.split('=', 1)
++                for pair in query_string.split('&')
++                if '=' in pair
++            )
++            raw_token = params.get('token', '')
++            if not raw_token:
++                return None
++
++            validated = AccessToken(raw_token)
++            user_id = validated['user_id']
++            return User.objects.get(pk=user_id)
++        except (InvalidToken, TokenError, User.DoesNotExist) as e:
++            # Expected/routine: missing, expired, or malformed token, or a
++            # token for a user that no longer exists. Not worth more than a
++            # debug line — this happens constantly for logged-out visitors.
++            logger.debug("WebSocket auth rejected: %s", e)
++            return None
++        except Exception:
++            # Anything else (a bad query string, a DB hiccup, ...) is *not*
++            # a routine auth failure — it's a bug or an infra problem, and
++            # silently treating it the same as "bad token" made it
++            # indistinguishable from a visitor just not being logged in.
++            # Log it with a traceback so it's actually findable, but still
++            # decline the connection rather than crashing the consumer.
++            logger.exception("Unexpected error authenticating WebSocket connection")
++            return None
++
++
++class ChatConsumer(TokenAuthConsumerMixin, AsyncJsonWebsocketConsumer):
++    """
++    WebSocket consumer for real-time chat *within a single conversation*.
+ 
+     Connection URL: ws/chat/<conversation_id>/
+ 
+@@ -39,13 +83,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
+     which is echoed back in the broadcast payload.  The sender's onmessage handler
+     uses it to swap the optimistic bubble for the real DB-persisted message,
+     avoiding duplicates.  Other participants receive temp_id too but ignore it.
++
++    IMPORTANT LIMITATION this consumer cannot solve on its own: this room
++    (chat_<conversation_id>) only has listeners once someone has actually
++    opened *this specific* conversation at least once. A brand new
++    conversation's first message has nobody to broadcast to on the
++    recipient's side, no matter what — they have no way to be "already
++    connected" to a room for a conversation that didn't exist a moment
++    ago. That's what UserNotifyConsumer below exists to solve instead.
+     """
+ 
+     # ── Lifecycle ─────────────────────────────────────────────────────────────
+ 
+     async def connect(self):
+-        # Browsers can't set Authorization headers on WebSocket connections.
+-        # The frontend passes the JWT as ?token=<jwt> in the URL.
+         self.user = await self._authenticate_from_query_string()
+ 
+         if self.user is None:
+@@ -110,9 +160,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
+             'created_at':      message.created_at.isoformat(),
+         }
+ 
+-        # Broadcast to everyone in the room (including the sender)
++        # Broadcast to everyone already in this conversation's room (including the sender)
+         await self.channel_layer.group_send(self.room_group_name, payload)
+ 
++        # ALSO ping the recipient's personal channel — this is what makes the
++        # unread badge / conversation list update instantly even when the
++        # recipient isn't currently looking at this specific conversation
++        # (elsewhere in the app, or hasn't opened this chat in this session
++        # yet). Previously nothing did this: the per-conversation room
++        # broadcast above only reaches someone already inside this exact
++        # room, so a recipient anywhere else in the app only found out on
++        # their next ~20-30s poll.
++        await self.notify_recipient()
++
+         # Bump conversation.updated_at so it floats to the top in the sidebar
+         await self.touch_conversation()
+ 
+@@ -147,7 +207,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
+ 
+     # ── Database helpers (run in a thread pool via database_sync_to_async) ────
+ 
+-
+     @database_sync_to_async
+     def create_notification(self, message):
+         from notifications.models import Notification
+@@ -177,41 +236,22 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
+                 conversation=self.conversation,
+             )
+ 
+-    @database_sync_to_async
+-    def _authenticate_from_query_string(self):
+-        # Parse ?token=<jwt> from the WebSocket URL query string.
+-        # Returns the matching User or None if token is missing/invalid.
+-        try:
+-            query_string = self.scope.get('query_string', b'').decode()
+-            params = dict(
+-                pair.split('=', 1)
+-                for pair in query_string.split('&')
+-                if '=' in pair
+-            )
+-            raw_token = params.get('token', '')
+-            if not raw_token:
+-                return None
++    async def notify_recipient(self):
++        recipient_id = await self.get_recipient_id()
++        await self.channel_layer.group_send(
++            f'user_{recipient_id}',
++            {
++                'type': 'notify.event',
++                'payload': {
++                    'type': 'chat.new_message',
++                    'conversation_id': self.conversation_id,
++                },
++            },
++        )
+ 
+-            validated = AccessToken(raw_token)
+-            user_id = validated['user_id']
+-            return User.objects.get(pk=user_id)
+-        except (InvalidToken, TokenError, User.DoesNotExist) as e:
+-            # Expected/routine: missing, expired, or malformed token, or a
+-            # token for a user that no longer exists. Not worth more than a
+-            # debug line — this happens constantly for logged-out visitors.
+-            logger.debug("WebSocket auth rejected: %s", e)
+-            return None
+-        except Exception:
+-            # Anything else (a bad query string, a DB hiccup, ...) is *not*
+-            # a routine auth failure — it's a bug or an infra problem, and
+-            # silently treating it the same as "bad token" (the previous
+-            # behavior — this branch used to be lumped into the tuple above
+-            # as a bare `Exception`) made it indistinguishable from a
+-            # visitor just not being logged in. Log it with a traceback so
+-            # it's actually findable, but still decline the connection
+-            # rather than crashing the whole consumer.
+-            logger.exception("Unexpected error authenticating WebSocket connection")
+-            return None
++    @database_sync_to_async
++    def get_recipient_id(self):
++        return self.conversation.get_other_participant(self.user).pk
+ 
+     @database_sync_to_async
+     def get_conversation(self):
+@@ -248,4 +288,49 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
+ 
+     @database_sync_to_async
+     def touch_conversation(self):
+-        self.conversation.save(update_fields=['updated_at'])
+\ No newline at end of file
++        self.conversation.save(update_fields=['updated_at'])
++
++
++class UserNotifyConsumer(TokenAuthConsumerMixin, AsyncJsonWebsocketConsumer):
++    """
++    A single, always-on, per-USER (not per-conversation) WebSocket.
++
++    Connection URL: ws/notify/
++
++    This exists specifically to solve the gap ChatConsumer's per-conversation
++    rooms structurally cannot: notifying someone about a conversation they
++    aren't currently inside — most importantly, a conversation that didn't
++    exist until this exact message created it, which a per-conversation room
++    can never have a pre-existing listener for.
++
++    The frontend opens exactly one of these as soon as the user is logged
++    in (see lib/notifySocket.js), independent of whatever page they're on,
++    and keeps it open for the life of the session — mirroring how a "you've
++    got mail" indicator works in basically every real chat product. On
++    receiving a chat.new_message event, the frontend force-refreshes the
++    unread badge counts and, if the conversation list happens to be on
++    screen, that too — instead of waiting up to ~20-30s for the next poll.
++
++    Message types sent TO the client:
++        { "type": "chat.new_message", "conversation_id": int }
++
++    Nothing is expected FROM the client on this connection; it's push-only.
++    """
++
++    async def connect(self):
++        self.user = await self._authenticate_from_query_string()
++        if self.user is None:
++            await self.close(code=4001)
++            return
++
++        self.group_name = f'user_{self.user.pk}'
++        await self.channel_layer.group_add(self.group_name, self.channel_name)
++        await self.accept()
++
++    async def disconnect(self, close_code):
++        if hasattr(self, 'group_name'):
++            await self.channel_layer.group_discard(self.group_name, self.channel_name)
++
++    async def notify_event(self, event):
++        """Forward a personal notification to this client."""
++        await self.send_json(event['payload'])
+diff --git a/backend/chat/routing.py b/backend/chat/routing.py
+index 98ce78d..b9299fa 100644
+--- a/backend/chat/routing.py
++++ b/backend/chat/routing.py
+@@ -1,10 +1,14 @@
+ # chat/routing.py
+ 
+ from django.urls import re_path
+-from .consumer import ChatConsumer
++from .consumer import ChatConsumer, UserNotifyConsumer
+ 
+ # Scope: ws/chat/<conversation_id>/
+ # conversation_id is an integer PK — \d+ is intentional (not \w+).
+ websocket_urlpatterns = [
+     re_path(r'^ws/chat/(?P<conversation_id>\d+)/$', ChatConsumer.as_asgi()),
++    # Per-user channel — one per logged-in session, independent of which
++    # conversation (if any) is currently open. See UserNotifyConsumer's
++    # docstring for why this exists alongside the per-conversation rooms.
++    re_path(r'^ws/notify/$', UserNotifyConsumer.as_asgi()),
+ ]
+\ No newline at end of file
+diff --git a/backend/chat/services.py b/backend/chat/services.py
+index a417ae3..bbbe772 100644
+--- a/backend/chat/services.py
++++ b/backend/chat/services.py
+@@ -55,6 +55,33 @@ def broadcast_new_message(message, temp_id=None):
+         )
+ 
+     recipient = conversation.get_other_participant(sender)
++
++    # This is the piece that actually solves "the recipient wasn't notified
++    # about a brand new conversation" — the room broadcast above only
++    # reaches someone already connected to chat_<conversation.pk>, which is
++    # structurally impossible for a conversation that didn't exist a moment
++    # ago. The recipient's personal channel (joined once at login,
++    # independent of which conversation or page they're on — see
++    # UserNotifyConsumer) is what lets their unread badge / conversation
++    # list update instantly instead of on the next ~20-30s poll.
++    try:
++        channel_layer = get_channel_layer()
++        async_to_sync(channel_layer.group_send)(
++            f'user_{recipient.pk}',
++            {
++                'type': 'notify.event',
++                'payload': {
++                    'type': 'chat.new_message',
++                    'conversation_id': conversation.pk,
++                },
++            },
++        )
++    except Exception:
++        logger.exception(
++            "Failed to send personal notification for message %s to user %s",
++            message.pk, recipient.pk,
++        )
++
+     existing = Notification.objects.filter(
+         recipient=recipient,
+         type='message',
+diff --git a/frontend/src/context/AuthContext.jsx b/frontend/src/context/AuthContext.jsx
+index 3e6948e..3784e66 100644
+--- a/frontend/src/context/AuthContext.jsx
++++ b/frontend/src/context/AuthContext.jsx
+@@ -3,6 +3,7 @@ import { apiFetch } from '../api/apiFetch.js';
+ import { tokenManager } from '../lib/TokenManager.js';
+ import { extractErrorMessageFromResponse } from '../lib/errorMessage.js';
+ import { logger } from '../lib/logger.js';
++import { notifySocket } from '../lib/notifySocket.js';
+ 
+ const AuthContext = createContext(null);
+ 
+@@ -96,6 +97,27 @@ export function AuthProvider({ children }) {
+     return () => window.removeEventListener('auth:logout', logout);
+   }, [logout]);
+ 
++  // Open the one always-on per-user notification socket as soon as we know
++  // who's logged in — covers both a fresh login (user just changed from
++  // null) and the common case of already being logged in from a previous
++  // session (user is set on the very first render, from localStorage).
++  useEffect(() => {
++    if (!user) {
++      notifySocket.disconnect();
++      return;
++    }
++    let cancelled = false;
++    (async () => {
++      try {
++        const token = await tokenManager.get_valid_token();
++        if (!cancelled) notifySocket.connect(token);
++      } catch (err) {
++        logger.warn('Could not open notify socket — no valid token', err);
++      }
++    })();
++    return () => { cancelled = true; };
++  }, [user]);
++
+   return (
+     <AuthContext.Provider value={{ user, login, signup, logout }}>
+       {children}
+diff --git a/frontend/src/features/chats/ChatPage.jsx b/frontend/src/features/chats/ChatPage.jsx
+index 7e61260..e7fde01 100644
+--- a/frontend/src/features/chats/ChatPage.jsx
++++ b/frontend/src/features/chats/ChatPage.jsx
+@@ -584,7 +584,15 @@ export default function ChatPage() {
+     } finally { setLoadingConvos(false); }
+   }, []);
+ 
+-  useEffect(() => { fetchConversations(); }, [fetchConversations]);
++  useEffect(() => {
++    fetchConversations();
++    // Same instant-refresh pattern as the unread-count badges — a brand
++    // new conversation, or a message arriving in one not currently open,
++    // now shows up in the sidebar immediately instead of on the next poll
++    // or a manual reload.
++    window.addEventListener('chat:new-message', fetchConversations);
++    return () => window.removeEventListener('chat:new-message', fetchConversations);
++  }, [fetchConversations]);
+ 
+   // ── Sync URL param → active conversation ──────────────────────────────
+   useEffect(() => {
+diff --git a/frontend/src/features/chats/NotificationPopup.jsx b/frontend/src/features/chats/NotificationPopup.jsx
+index fd43d27..0c892ee 100644
+--- a/frontend/src/features/chats/NotificationPopup.jsx
++++ b/frontend/src/features/chats/NotificationPopup.jsx
+@@ -224,7 +224,17 @@ export function useUnreadNotifCount() {
+   useEffect(() => {
+     poll();
+     const id = setInterval(poll, 30000);
+-    return () => clearInterval(id);
++    // Previously this only ever updated on the 30s timer — a genuinely new
++    // conversation (or a message while you're elsewhere in the app) could
++    // take up to 30s to show up in the badge. The per-user notify socket
++    // (see lib/notifySocket.js) dispatches this event the instant the
++    // backend knows about new activity, so react immediately instead of
++    // waiting out the rest of the interval.
++    window.addEventListener('chat:new-message', poll);
++    return () => {
++      clearInterval(id);
++      window.removeEventListener('chat:new-message', poll);
++    };
+   }, [poll]);
+ 
+   return { count, ringing, refetch: poll };
+@@ -250,7 +260,11 @@ export function useUnreadChatCount() {
+     }
+     poll();
+     const id = setInterval(poll, 20000);
+-    return () => clearInterval(id);
++    window.addEventListener('chat:new-message', poll);
++    return () => {
++      clearInterval(id);
++      window.removeEventListener('chat:new-message', poll);
++    };
+   }, []);
+ 
+   return count;
+diff --git a/frontend/src/lib/notifySocket.js b/frontend/src/lib/notifySocket.js
+new file mode 100644
+index 0000000..34925bf
+--- /dev/null
++++ b/frontend/src/lib/notifySocket.js
+@@ -0,0 +1,102 @@
++// lib/notifySocket.js
++//
++// One persistent WebSocket per logged-in session, connected to
++// /ws/notify/ (UserNotifyConsumer on the backend) — independent of
++// whichever conversation or page is currently open. This is what makes
++// "someone started a new conversation with me" or "someone messaged me
++// while I was on /explore/" show up without a manual reload or waiting
++// for the next ~20-30s poll.
++//
++// Before this existed, the ONLY live-update mechanism was ChatConsumer's
++// per-conversation rooms — which can only ever notify someone already
++// connected to that specific conversation. A brand new conversation has
++// no room with a pre-existing listener, by definition, so its first
++// message had no live delivery path at all. This is the fix for that gap.
++//
++// Other parts of the app (the unread-count badges, the conversation list)
++// don't import this module directly — they just listen for the
++// 'chat:new-message' window event it dispatches, the same pattern this
++// codebase already uses for 'auth:logout' in apiFetch.js/TokenManager.js.
++
++import { logger } from './logger';
++
++class NotifySocket {
++  constructor() {
++    this.ws = null;
++    this.token = null;
++    this.cancelled = true;
++    this.retryCount = 0;
++    this.reconnectTimer = null;
++  }
++
++  connect(token) {
++    if (this.ws && this.token === token) return; // already connected for this session
++    this.disconnect(); // tear down any previous connection (e.g. a stale token)
++    this.token = token;
++    this.cancelled = false;
++    this.retryCount = 0;
++    this._open();
++  }
++
++  disconnect() {
++    this.cancelled = true;
++    this.token = null;
++    if (this.reconnectTimer) {
++      clearTimeout(this.reconnectTimer);
++      this.reconnectTimer = null;
++    }
++    if (this.ws) {
++      this.ws.close(1000); // normal closure — must not trigger reconnect below
++      this.ws = null;
++    }
++  }
++
++  _open() {
++    if (this.cancelled) return;
++
++    const wsHost   = process.env.REACT_APP_WS_HOST ?? window.location.host;
++    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
++    const ws = new WebSocket(`${protocol}://${wsHost}/ws/notify/?token=${this.token}`);
++    this.ws = ws;
++
++    ws.onopen = () => {
++      this.retryCount = 0;
++    };
++
++    ws.onmessage = (event) => {
++      let data;
++      try {
++        data = JSON.parse(event.data);
++      } catch (err) {
++        logger.error('Could not parse notify socket message', err);
++        return;
++      }
++      if (data.type === 'chat.new_message') {
++        window.dispatchEvent(new CustomEvent('chat:new-message', {
++          detail: { conversationId: data.conversation_id },
++        }));
++      }
++    };
++
++    ws.onerror = (event) => {
++      logger.error('Notify WebSocket error', event);
++    };
++
++    ws.onclose = (event) => {
++      if (event.code !== 1000) {
++        logger.warn(`Notify WebSocket closed (code ${event.code})`);
++      }
++      // Same bounded-backoff reconnect pattern as ChatPage's WebSocket —
++      // this connection is meant to live for the entire session, so it
++      // needs to recover from idle timeouts / network blips on its own
++      // rather than silently going stale until the next full page reload.
++      if (!this.cancelled && event.code !== 1000) {
++        const delay = Math.min(1000 * 2 ** this.retryCount, 10_000);
++        this.retryCount += 1;
++        this.reconnectTimer = setTimeout(() => this._open(), delay);
++      }
++    };
++  }
++}
++
++export const notifySocket = new NotifySocket();

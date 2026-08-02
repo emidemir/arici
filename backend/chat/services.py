@@ -55,6 +55,33 @@ def broadcast_new_message(message, temp_id=None):
         )
 
     recipient = conversation.get_other_participant(sender)
+
+    # This is the piece that actually solves "the recipient wasn't notified
+    # about a brand new conversation" — the room broadcast above only
+    # reaches someone already connected to chat_<conversation.pk>, which is
+    # structurally impossible for a conversation that didn't exist a moment
+    # ago. The recipient's personal channel (joined once at login,
+    # independent of which conversation or page they're on — see
+    # UserNotifyConsumer) is what lets their unread badge / conversation
+    # list update instantly instead of on the next ~20-30s poll.
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'user_{recipient.pk}',
+            {
+                'type': 'notify.event',
+                'payload': {
+                    'type': 'chat.new_message',
+                    'conversation_id': conversation.pk,
+                },
+            },
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send personal notification for message %s to user %s",
+            message.pk, recipient.pk,
+        )
+
     existing = Notification.objects.filter(
         recipient=recipient,
         type='message',

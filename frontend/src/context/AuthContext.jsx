@@ -3,6 +3,7 @@ import { apiFetch } from '../api/apiFetch.js';
 import { tokenManager } from '../lib/TokenManager.js';
 import { extractErrorMessageFromResponse } from '../lib/errorMessage.js';
 import { logger } from '../lib/logger.js';
+import { notifySocket } from '../lib/notifySocket.js';
 
 const AuthContext = createContext(null);
 
@@ -95,6 +96,27 @@ export function AuthProvider({ children }) {
     window.addEventListener('auth:logout', logout);
     return () => window.removeEventListener('auth:logout', logout);
   }, [logout]);
+
+  // Open the one always-on per-user notification socket as soon as we know
+  // who's logged in — covers both a fresh login (user just changed from
+  // null) and the common case of already being logged in from a previous
+  // session (user is set on the very first render, from localStorage).
+  useEffect(() => {
+    if (!user) {
+      notifySocket.disconnect();
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await tokenManager.get_valid_token();
+        if (!cancelled) notifySocket.connect(token);
+      } catch (err) {
+        logger.warn('Could not open notify socket — no valid token', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, login, signup, logout }}>

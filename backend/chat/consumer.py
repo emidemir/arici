@@ -17,9 +17,53 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-class ChatConsumer(AsyncJsonWebsocketConsumer):
+class TokenAuthConsumerMixin:
     """
-    WebSocket consumer for real-time chat.
+    Shared JWT-from-query-string authentication for WebSocket consumers.
+
+    Browsers can't set Authorization headers on WebSocket connections, so
+    the frontend passes the JWT as ?token=<jwt> in the connection URL
+    instead. Used by both ChatConsumer (per-conversation rooms) and
+    UserNotifyConsumer (the per-user "you have new activity" channel) —
+    extracted here so the two don't drift out of sync with each other.
+    """
+
+    @database_sync_to_async
+    def _authenticate_from_query_string(self):
+        try:
+            query_string = self.scope.get('query_string', b'').decode()
+            params = dict(
+                pair.split('=', 1)
+                for pair in query_string.split('&')
+                if '=' in pair
+            )
+            raw_token = params.get('token', '')
+            if not raw_token:
+                return None
+
+            validated = AccessToken(raw_token)
+            user_id = validated['user_id']
+            return User.objects.get(pk=user_id)
+        except (InvalidToken, TokenError, User.DoesNotExist) as e:
+            # Expected/routine: missing, expired, or malformed token, or a
+            # token for a user that no longer exists. Not worth more than a
+            # debug line — this happens constantly for logged-out visitors.
+            logger.debug("WebSocket auth rejected: %s", e)
+            return None
+        except Exception:
+            # Anything else (a bad query string, a DB hiccup, ...) is *not*
+            # a routine auth failure — it's a bug or an infra problem, and
+            # silently treating it the same as "bad token" made it
+            # indistinguishable from a visitor just not being logged in.
+            # Log it with a traceback so it's actually findable, but still
+            # decline the connection rather than crashing the consumer.
+            logger.exception("Unexpected error authenticating WebSocket connection")
+            return None
+
+
+class ChatConsumer(TokenAuthConsumerMixin, AsyncJsonWebsocketConsumer):
+    """
+    WebSocket consumer for real-time chat *within a single conversation*.
 
     Connection URL: ws/chat/<conversation_id>/
 
@@ -39,13 +83,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     which is echoed back in the broadcast payload.  The sender's onmessage handler
     uses it to swap the optimistic bubble for the real DB-persisted message,
     avoiding duplicates.  Other participants receive temp_id too but ignore it.
+
+    IMPORTANT LIMITATION this consumer cannot solve on its own: this room
+    (chat_<conversation_id>) only has listeners once someone has actually
+    opened *this specific* conversation at least once. A brand new
+    conversation's first message has nobody to broadcast to on the
+    recipient's side, no matter what — they have no way to be "already
+    connected" to a room for a conversation that didn't exist a moment
+    ago. That's what UserNotifyConsumer below exists to solve instead.
     """
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     async def connect(self):
-        # Browsers can't set Authorization headers on WebSocket connections.
-        # The frontend passes the JWT as ?token=<jwt> in the URL.
         self.user = await self._authenticate_from_query_string()
 
         if self.user is None:
@@ -110,8 +160,18 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'created_at':      message.created_at.isoformat(),
         }
 
-        # Broadcast to everyone in the room (including the sender)
+        # Broadcast to everyone already in this conversation's room (including the sender)
         await self.channel_layer.group_send(self.room_group_name, payload)
+
+        # ALSO ping the recipient's personal channel — this is what makes the
+        # unread badge / conversation list update instantly even when the
+        # recipient isn't currently looking at this specific conversation
+        # (elsewhere in the app, or hasn't opened this chat in this session
+        # yet). Previously nothing did this: the per-conversation room
+        # broadcast above only reaches someone already inside this exact
+        # room, so a recipient anywhere else in the app only found out on
+        # their next ~20-30s poll.
+        await self.notify_recipient()
 
         # Bump conversation.updated_at so it floats to the top in the sidebar
         await self.touch_conversation()
@@ -147,7 +207,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     # ── Database helpers (run in a thread pool via database_sync_to_async) ────
 
-
     @database_sync_to_async
     def create_notification(self, message):
         from notifications.models import Notification
@@ -177,41 +236,22 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 conversation=self.conversation,
             )
 
-    @database_sync_to_async
-    def _authenticate_from_query_string(self):
-        # Parse ?token=<jwt> from the WebSocket URL query string.
-        # Returns the matching User or None if token is missing/invalid.
-        try:
-            query_string = self.scope.get('query_string', b'').decode()
-            params = dict(
-                pair.split('=', 1)
-                for pair in query_string.split('&')
-                if '=' in pair
-            )
-            raw_token = params.get('token', '')
-            if not raw_token:
-                return None
+    async def notify_recipient(self):
+        recipient_id = await self.get_recipient_id()
+        await self.channel_layer.group_send(
+            f'user_{recipient_id}',
+            {
+                'type': 'notify.event',
+                'payload': {
+                    'type': 'chat.new_message',
+                    'conversation_id': self.conversation_id,
+                },
+            },
+        )
 
-            validated = AccessToken(raw_token)
-            user_id = validated['user_id']
-            return User.objects.get(pk=user_id)
-        except (InvalidToken, TokenError, User.DoesNotExist) as e:
-            # Expected/routine: missing, expired, or malformed token, or a
-            # token for a user that no longer exists. Not worth more than a
-            # debug line — this happens constantly for logged-out visitors.
-            logger.debug("WebSocket auth rejected: %s", e)
-            return None
-        except Exception:
-            # Anything else (a bad query string, a DB hiccup, ...) is *not*
-            # a routine auth failure — it's a bug or an infra problem, and
-            # silently treating it the same as "bad token" (the previous
-            # behavior — this branch used to be lumped into the tuple above
-            # as a bare `Exception`) made it indistinguishable from a
-            # visitor just not being logged in. Log it with a traceback so
-            # it's actually findable, but still decline the connection
-            # rather than crashing the whole consumer.
-            logger.exception("Unexpected error authenticating WebSocket connection")
-            return None
+    @database_sync_to_async
+    def get_recipient_id(self):
+        return self.conversation.get_other_participant(self.user).pk
 
     @database_sync_to_async
     def get_conversation(self):
@@ -249,3 +289,48 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def touch_conversation(self):
         self.conversation.save(update_fields=['updated_at'])
+
+
+class UserNotifyConsumer(TokenAuthConsumerMixin, AsyncJsonWebsocketConsumer):
+    """
+    A single, always-on, per-USER (not per-conversation) WebSocket.
+
+    Connection URL: ws/notify/
+
+    This exists specifically to solve the gap ChatConsumer's per-conversation
+    rooms structurally cannot: notifying someone about a conversation they
+    aren't currently inside — most importantly, a conversation that didn't
+    exist until this exact message created it, which a per-conversation room
+    can never have a pre-existing listener for.
+
+    The frontend opens exactly one of these as soon as the user is logged
+    in (see lib/notifySocket.js), independent of whatever page they're on,
+    and keeps it open for the life of the session — mirroring how a "you've
+    got mail" indicator works in basically every real chat product. On
+    receiving a chat.new_message event, the frontend force-refreshes the
+    unread badge counts and, if the conversation list happens to be on
+    screen, that too — instead of waiting up to ~20-30s for the next poll.
+
+    Message types sent TO the client:
+        { "type": "chat.new_message", "conversation_id": int }
+
+    Nothing is expected FROM the client on this connection; it's push-only.
+    """
+
+    async def connect(self):
+        self.user = await self._authenticate_from_query_string()
+        if self.user is None:
+            await self.close(code=4001)
+            return
+
+        self.group_name = f'user_{self.user.pk}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def notify_event(self, event):
+        """Forward a personal notification to this client."""
+        await self.send_json(event['payload'])

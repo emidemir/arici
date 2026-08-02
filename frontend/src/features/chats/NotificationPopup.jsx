@@ -224,7 +224,17 @@ export function useUnreadNotifCount() {
   useEffect(() => {
     poll();
     const id = setInterval(poll, 30000);
-    return () => clearInterval(id);
+    // Previously this only ever updated on the 30s timer — a genuinely new
+    // conversation (or a message while you're elsewhere in the app) could
+    // take up to 30s to show up in the badge. The per-user notify socket
+    // (see lib/notifySocket.js) dispatches this event the instant the
+    // backend knows about new activity, so react immediately instead of
+    // waiting out the rest of the interval.
+    window.addEventListener('chat:new-message', poll);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('chat:new-message', poll);
+    };
   }, [poll]);
 
   return { count, ringing, refetch: poll };
@@ -250,7 +260,11 @@ export function useUnreadChatCount() {
     }
     poll();
     const id = setInterval(poll, 20000);
-    return () => clearInterval(id);
+    window.addEventListener('chat:new-message', poll);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('chat:new-message', poll);
+    };
   }, []);
 
   return count;
